@@ -1,112 +1,131 @@
 #pragma once
 // ======================================================================
-// EDGE PHG
-// ======================================================================
-
-#define var			EDGE
-#define INVALIDVAR	EDGE(0)
-
-struct EDGE
-{
-	int val = 0;
-	VECLIST vlist;
-	EDGE() {}
-	EDGE(int _val)
-	{
-		val = _val;
-	}
-	operator const int& ()
-	{
-		return val;
-	}
-	bool operator==(EDGE v) const
-	{
-		if (vlist.size() != v.vlist.size())
-			return false;
-		for (int i = 0; i < vlist.size(); i++)
-		{
-			if (vlist[i].p != v.vlist[i].p)
-				return false;
-		}
-		return true;
-	}
-	bool operator==(int v) const
-	{
-		return val == v;
-	}
-	EDGE operator + (const EDGE& v) const
-	{
-		if (vlist.empty())
-			return v;
-
-		EDGE e;
-		e.vlist = vlist;
-		vec3 lastp = vec3::ZERO;
-		for (auto it : v.vlist)
-		{
-			vec3 np = e.vlist.back().p + (it.p - lastp);
-			lastp = it.p;
-
-			bool bloop = false;
-			for (int i = 0; i < e.vlist.size(); i++)
-			{
-				if (np == e.vlist[i].p)
-				{
-					e.vlist.assign(e.vlist.begin(), e.vlist.begin() + i + 1);
-					bloop = true;
-					break;
-				}
-			}
-			if (!bloop)
-				e.vlist.push_back(np);
-		}
-		return e;
-	}
-	EDGE operator - (const EDGE& v) const
-	{
-		return (*this) + (-v);
-	}
-	EDGE operator - () const
-	{
-		EDGE e;
-		for (int i = 0; i < vlist.size(); i++)
-		{
-			e.vlist.push_back(-vlist[i].p);
-		}
-		return e;
-	}
-	EDGE operator * (const EDGE& v) const
-	{
-		EDGE e;
-
-		e.vlist = vlist;
-		int len = _MIN(v.vlist.size(), vlist.size());
-		for(int i = 0; i < len; i ++)
-		{
-			vec3 n = v.vlist[i].p.normcopy();
-			real ang = v.vlist[i].p.len();
-
-			e.vlist[i].p.rot(ang, n);
-		}
-		return e;
-	}
-};
-
-#include "phg.hpp"
-
-// ======================================================================
 // PMHG
 // ======================================================================
+#undef var
+#undef INVALIDVAR
+
+#define var			PMHG::EDGE
+#define INVALIDVAR	PMHG::EDGE(0)
+
+#undef PHGPRINT
+#define PHGPRINT	PMHG::_PHGPRINT
+
+#define PHG_VAR(name, defaultval) (PMHG::gcode.varmapstack.stack.empty() || PMHG::gcode.varmapstack.stack.front().find(#name) == PMHG::gcode.varmapstack.stack.front().end() ? defaultval : PMHG::gcode.varmapstack.stack.front()[#name])
+#define PHG_PARAM(index)	cd.valstack.get(args - index)
+
+extern void initphg();
+
 namespace PMHG
 {
-	inline void PHGPRINT(const EDGE& e)
+	// 运算
+	struct EDGE
+	{
+		int val = 0;
+		VECLIST vlist;
+		EDGE() {}
+		EDGE(int _val)
+		{
+			val = _val;
+		}
+		operator const int& ()
+		{
+			return val;
+		}
+		bool operator==(EDGE v) const
+		{
+			if (vlist.size() != v.vlist.size())
+				return false;
+			for (int i = 0; i < vlist.size(); i++)
+			{
+				if (vlist[i].p != v.vlist[i].p)
+					return false;
+			}
+			return true;
+		}
+		bool operator==(int v) const
+		{
+			return val == v;
+		}
+		EDGE operator + (const EDGE& v) const
+		{
+			if (vlist.empty())
+				return v;
+
+			EDGE e;
+			e.vlist = vlist;
+			vec3 lastp = vec3::ZERO;
+			for (auto it : v.vlist)
+			{
+				vec3 np = e.vlist.back().p + (it.p - lastp);
+				lastp = it.p;
+
+				bool bloop = false;
+				for (int i = 0; i < e.vlist.size(); i++)
+				{
+					if (np == e.vlist[i].p)
+					{
+						e.vlist.assign(e.vlist.begin(), e.vlist.begin() + i + 1);
+						bloop = true;
+						break;
+					}
+				}
+				if (!bloop)
+					e.vlist.push_back(np);
+			}
+			return e;
+		}
+		EDGE operator - (const EDGE& v) const
+		{
+			return (*this) + (-v);
+		}
+		EDGE operator - () const
+		{
+			EDGE e;
+			for (int i = 0; i < vlist.size(); i++)
+			{
+				e.vlist.push_back(-vlist[i].p);
+			}
+			return e;
+		}
+		EDGE operator * (const EDGE& v) const
+		{
+			EDGE e;
+			vec3 n = vec3::UY;
+			vec3 lsp;
+			e.vlist = vlist;
+			for (int j = 0; j < v.vlist.size(); j ++)
+			{
+				vec3 p = v.vlist[j].p - lsp;
+				real r = p.len();
+				
+				real rr = p.lenxz();
+				if (rr > 0)
+				{
+					real ang = atan2(p.z / rr, p.x / rr);
+					PRINTV(ang);
+					for (int i = 0; i < e.vlist.size(); i++)
+					{
+						e.vlist[i].p.rot(ang, n);
+						//e.vlist[i].p *= r;
+					}
+				}
+				lsp = v.vlist[j].p;
+			}
+			return e;
+		}
+	};
+
+	inline void _PHGPRINT(const EDGE& e)
 	{
 		for (auto& i : e.vlist)
 			PRINTVEC3(i.p)
 	}
 
+	#include "phg.hpp"
+
 	// act
-	var act(PHG::code& cd, int args)
+	var _act(code& cd, int args)
 	{
 		opr o = cd.oprstack.pop();
 
@@ -142,7 +161,7 @@ namespace PMHG
 		}
 	}
 
-	inline real chars2real(PHG::code& cd)
+	inline real chars2real(code& cd)
 	{
 		static char buff[128];
 		int i = 0;
@@ -157,13 +176,13 @@ namespace PMHG
 		}
 		buff[i] = '\0';
 
-		return atoi(buff);
+		return atof(buff);
 	}
 
 	// table
-	static void table(PHG::code& cd)
+	static void _table(code& cd)
 	{
-		PRINT("table: ");
+		PRINT("table: " << gtable.size() + 1);
 
 		cd.next();
 
@@ -176,8 +195,8 @@ namespace PMHG
 				PRINTVEC3(p);
 				edge.vlist.push_back(p);
 
-				PHG::gtable.push_back(edge);
-				PRINTV(PHG::gtable.size());
+				gtable.push_back(edge);
+				//PRINTV(gtable.size());
 				edge.vlist.clear();
 
 				cd.next();
@@ -192,27 +211,54 @@ namespace PMHG
 			}
 			else {
 				short type = get(cd);
-				if (type == NUMBER)
+				if (type == OPR || type == NUMBER)
 				{
-					p.x = chars2real(cd);
+					real neg;
+					{
+						neg = 1.0f;
+						if ('-' == cd.cur())
+						{
+							neg = -1.0f;
+							cd.next();
+						}
+					}
+					p.x = neg * chars2real(cd);
 					cd.next();
-					p.y = chars2real(cd);
+					{
+						neg = 1.0f;
+						if ('-' == cd.cur())
+						{
+							neg = -1.0f;
+							cd.next();
+						}
+					}
+					p.y = neg * chars2real(cd);
 					cd.next();
-					p.z = chars2real(cd);
+					{
+						neg = 1.0f;
+						if ('-' == cd.cur())
+						{
+							neg = -1.0f;
+							cd.next();
+						}
+					}
+					p.z = neg * chars2real(cd);
 				}
 			}
 		}
 	}
-
+	
 	void setup()
 	{
-		PHG::table = table;
-		PHG::act = act;
+		initphg();
+
+		table = _table;
+		act = _act;
 		
-		PHG::register_api("render",
-			[](PHG::code& cd, int args)->var {
+		register_api("render",
+			[](code& cd, int args)->var {
 				estack.clear();
-				for (auto& it : PHG::gtable)
+				for (auto& it : gtable)
 				{
 					vec3 lastp;
 					for (int i = 0; i < it.vlist.size(); i++)
@@ -230,12 +276,93 @@ namespace PMHG
 	}
 }
 
+// ---------------------------------------------------------------
+static var pushe(PMHG::code& cd, int args)
+{
+	//PRINTV(PHG_PARAM(1).vlist.size());
+	if (args == 1)
+	{
+		estack.push_back(PHG_PARAM(1).vlist);
+	}
+	else
+	{
+		if (estack.empty())
+			estack.push_back(VECLIST());
+		else
+		{
+			estack.push_back(estack.back());
+		}
+	}
+
+	return 0;
+}
+static var pope(PMHG::code& cd, int args)
+{
+	estack.pop_back();
+
+	return 0;
+}
+
+static var extrudeedge(PMHG::code& cd, int args)
+{
+	float d = 1;
+
+	VECLIST& e1 = estack.back();
+	vec norm = getedgenorm2(e1);
+	vec dv = norm * d;
+	{
+		for (int i = 0; i < e1.size(); i++)
+		{
+			e1[i].p += dv;
+			e1[i].ind = -1;
+		}
+	}
+	return INVALIDVAR;
+}
+
+static var facepoly(PMHG::code& cd, int args)
+{
+	if (estack.empty())
+		return INVALIDVAR;
+
+	std::vector<vec3> tris;
+	POLY::link_tri(estack.back(), vec3::UX, tris);
+	for (int i = 0; i < tris.size(); i += 3)
+	{
+		triang0(tris[i], tris[i + 1], tris[i + 2]);
+	}
+	return INVALIDVAR;
+}
+
+static var face(PMHG::code& cd, int args)
+{
+	face(estack[estack.size() - 2], estack.back());
+	return 0;
+}
+
+//------------------------------------------
+// init
+//------------------------------------------
+static void initphg()
+{
+	PRINT("setup PMHG");
+	
+	reset();
+
+	PMHG::register_api("push", pushe);
+	PMHG::register_api("pop", pope);
+
+	PMHG::register_api("ext", extrudeedge);
+
+	PMHG::register_api("face", face);
+
+	PMHG::register_api("facepoly", facepoly);
+}
 // ======================================================================
 // test
 // ======================================================================
+
 void test()
 {
-	PMHG::setup();
-
-	PHG::dofile("main.phg");
+	PMHG::dofile("main.e");
 }
