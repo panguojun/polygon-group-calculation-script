@@ -729,7 +729,7 @@ static int subtrunk(code& cd, var& ret)
 				int loopcnt = toint(expr(cd));
 				cd.next();
 				const char* cp = cd.ptr;
-				for (int i = 0; i < loopcnt; i++) {
+				for (int i = 1; i < loopcnt; i++) {
 					int rettype = subtrunk(cd, ret);
 					if (rettype == 1)
 					{
