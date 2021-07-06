@@ -108,7 +108,7 @@ inline bool iscalc(char c) {
 	return c == '+' || c == '-' || c == '*' || c == '/' || c == '!';
 }
 inline bool islogic(char c) {
-	return c == '>' || c == '<' || c == '=' || c == '&' || c == '|';
+	return c == '>' || c == '<' || c == '=' || c == '&' || c == '|' || c == '^';
 }
 inline bool isname(char c) {
 	return c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z';
@@ -293,7 +293,7 @@ static struct code
 	char getnext2() {
 		const char* p = ptr;
 		while (!eoc(++p)){
-			if(!checkspace(*(p)) && !isname(*(p)))
+			if(!checkspace(*(p)) && (!isname(*(p))))
 				break;
 		}
 		return (*p);
@@ -454,7 +454,7 @@ static inline var chars2var(code& cd) {
 
 	if (!isreal && !gtable.empty())
 	{
-		int number = atoi(buff) - 1;
+		int number = atoi(buff);
 		if (number < 0 || number >= gtable.size())
 		{
 			ERRORMSG("chars2var error! number=" << number);
@@ -624,7 +624,6 @@ static void statement_default(code& cd) {
 	short type = get(cd);
 	if (type == NAME) {
 		char nc = cd.getnext2();
-			
 		if (nc == '=') {
 			singvar(cd);
 		}
@@ -635,8 +634,9 @@ static void statement_default(code& cd) {
 	}
 	else if (cd.cur() == '>') {
 		cd.next();
+		string name = cd.getname();
 		const var& v = expr(cd);
-		PHGPRINT(v);
+		PHGPRINT(name, v);
 		cd.next();
 	}
 	else
@@ -887,12 +887,15 @@ static void parser_default(code& cd) {
 	PRINT("--------PHG---------");
 	PRINT(cd.ptr);
 	PRINT("--------------------");
-		
-	rank['+'] = 1;
-	rank['-'] = 1;
-	rank['*'] = 2;
-	rank['/'] = 2;
-	rank['!'] = 3;
+	
+	rank['|'] = 1;
+	rank['^'] = 1;
+	rank['&'] = 2;
+	rank['+'] = 3;
+	rank['-'] = 3;
+	rank['*'] = 4;
+	rank['/'] = 4;
+	rank['!'] = 5;
 
 	//getchar();
 
