@@ -290,31 +290,35 @@ namespace PMHG
 ADDLIST1:
 				for (int i = start1; i < vlist.size(); i++)
 				{
-					for (int j = start2; j < v.vlist.size(); j++)
+					for (int j = 0; j < v.vlist.size(); j++)
 					{
 						if (vlist[i].p == v.vlist[j].p)
 						{
-							PRINT("SAMEA " << i);
 							e.vlist.push_back(vlist[i]);
 							start2 = j + 1;
+							PRINTV(start2);
 							goto ADDLIST2;
 						}
 					}
+					PRINT("PUSHA " << i);
 					e.vlist.push_back(vlist[i]);
 				}
 ADDLIST2:
 				for (int i = start2; i < v.vlist.size(); i++)
 				{
-					for (int j = start1; j < vlist.size(); j++)
+					for (int j = 0; j < vlist.size(); j++)
 					{
 						if (v.vlist[i].p == vlist[j].p)
 						{
-							PRINT("SAMEB " << i);
 							e.vlist.push_back(v.vlist[i]);
 							start1 = j + 1;
+							start2 = i + 1;
+							PRINTV(start1);
 							goto ADDLIST1;
 						}
 					}
+
+					PRINT("PUSHB " << i);
 					e.vlist.push_back(v.vlist[i]);
 				}
 			}
