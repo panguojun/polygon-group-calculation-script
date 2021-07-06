@@ -21,10 +21,9 @@ namespace PMHG
 	// 运算
 	struct EDGE
 	{
-		enum {INT, REAL, QUAT, VLIST};
+		enum {REAL, QUAT, VLIST};
 		byte type = REAL;
 		union {
-			int ival;
 			real fval;
 			quaternion q;
 		};
@@ -32,11 +31,6 @@ namespace PMHG
 
 		EDGE() {
 			type = VLIST;
-		}
-		EDGE(int _val)
-		{
-			type = INT;
-			ival = _val;
 		}
 		EDGE(real _val)
 		{
@@ -63,38 +57,45 @@ namespace PMHG
 		}
 		bool operator==(const EDGE& v) const
 		{
-			if (vlist.size() != v.vlist.size())
-				return false;
-			for (int i = 0; i < vlist.size(); i++)
+			if (type == VLIST && v.type == type)
 			{
-				if (vlist[i].p != v.vlist[i].p)
+				if (vlist.size() != v.vlist.size())
 					return false;
+				for (int i = 0; i < vlist.size(); i++)
+				{
+					if (vlist[i].p != v.vlist[i].p)
+						return false;
+				}
+				return true;
 			}
-			return true;
-		}
-		bool operator==(int v) const
-		{
-			return ival == v;
+			if (type == REAL && v.type == type)
+			{
+				return fval == v.fval;
+			}
+			if (type == QUAT && v.type == type)
+			{
+				return q == v.q;
+			}
+			return false;
 		}
 		bool operator==(real v) const
 		{
 			return fval == v;
 		}
+		
 		EDGE operator + (const EDGE& v) const
 		{
 			EDGE e;
 			if (type == REAL && v.type == type)
 			{
+				PRINT("+ REAL REAL");
 				e.type = REAL;
 				e.fval = fval + v.fval;
 			}
-			else if (type == INT && v.type == type)
-			{
-				e.type = INT;
-				e.ival = ival + v.ival;
-			}
 			else if (type == VLIST && v.type == VLIST)
 			{
+				PRINT("+ VLIST VLIST");
+
 				e.type = VLIST;
 				if (vlist.empty())
 					return v;
@@ -122,6 +123,8 @@ namespace PMHG
 			}
 			else if (type == VLIST && v.type == QUAT)
 			{
+				PRINT("+ VLIST QUAT");
+
 				e.type = VLIST;
 				e.vlist = vlist;
 				for (int i = 0; i < e.vlist.size(); i++)
@@ -129,18 +132,49 @@ namespace PMHG
 					e.vlist[i] = e.vlist[i] + v.q.xyz();
 				}
 			}
+			else if (type == QUAT && v.type == QUAT)
+			{
+				ERRORMSG("+ QUAT QUAT");
+			}
 			return e;
 		}
 		EDGE operator - (const EDGE& v) const
 		{
-			return (*this) + (-v);
+			if (type == VLIST && v.type == VLIST)
+			{
+				PRINT("- VLIST VLIST");
+				return (*this) + (-v);
+			}
+			if (type == VLIST && v.type == REAL)
+			{
+				PRINT("- VLIST REAL");
+				return (*this) + (-v);
+			}
+			else if (type == VLIST && v.type == QUAT)
+			{
+				PRINT("- VLIST QUAT");
+				return (*this) + (-v);
+			}
+			return INVALIDVAR;
 		}
 		EDGE operator - () const
 		{
 			EDGE e;
-			for (int i = 0; i < vlist.size(); i++)
+			e.type = type;
+			if (type == VLIST)
 			{
-				e.vlist.push_back(-vlist[i].p);
+				for (int i = 0; i < vlist.size(); i++)
+				{
+					e.vlist.push_back(-vlist[i].p);
+				}
+			}
+			else if (type == REAL)
+			{
+				e.fval = -fval;
+			}
+			else if (type == QUAT)
+			{
+				e.q = -q;
 			}
 			return e;
 		}
@@ -149,28 +183,7 @@ namespace PMHG
 			EDGE e;
 			if (type == VLIST && v.type == VLIST)
 			{
-				PRINT("* VLIST");
-				vec3 n = vec3::UY;
-				vec3 lsp;
-				e.vlist = vlist;
-				for (int j = 0; j < v.vlist.size(); j++)
-				{
-					vec3 p = v.vlist[j].p - lsp;
-					real r = p.len();
-
-					real rr = p.lenxz();
-					if (rr > 0)
-					{
-						real ang = atan2(p.z / rr, p.x / rr);
-						PRINTV(ang);
-						for (int i = 0; i < e.vlist.size(); i++)
-						{
-							e.vlist[i].p.rot(ang, n);
-							//e.vlist[i].p *= r;
-						}
-					}
-					lsp = v.vlist[j].p;
-				}
+				ERRORMSG("* VLIST VLIST");
 			}
 			else if (type == VLIST && v.type == REAL)
 			{
@@ -195,8 +208,22 @@ namespace PMHG
 			else if (type == REAL && v.type == REAL)
 			{
 				e.type = REAL;
-				PRINT("* REAL REAL")
+				PRINT("* REAL REAL");
 				e.fval = e.fval * v.fval;
+			}
+			else if (type == REAL && v.type == VLIST)
+			{
+				ERRORMSG("* REAL VLIST");
+			}
+			else if (type == QUAT && v.type == VLIST)
+			{
+				ERRORMSG("* QUAT VLIST");
+			}
+			else if (type == QUAT && v.type == QUAT)
+			{
+				e.type = QUAT;
+				PRINT("* QUAT QUAT");
+				e.q = q * v.q;
 			}
 			return e;
 		}
@@ -205,7 +232,7 @@ namespace PMHG
 			EDGE e;
 			if (type == VLIST && v.type == REAL)
 			{
-				PRINT("/ REAL");
+				PRINT("/ VLIST REAL");
 
 				int len = int(e.vlist.size() / v.fval);
 				for (int i = 0; i < len; i++)
@@ -213,12 +240,133 @@ namespace PMHG
 			}
 			return e;
 		}
+		EDGE operator | (const EDGE& v) const
+		{
+			EDGE e;
+			if (type == VLIST && v.type == VLIST)
+			{
+				PRINT("| VLIST VLIST");
+
+				e.type = VLIST;
+
+				if (vlist.empty())
+					return v;
+
+				e.vlist = vlist;
+				for (int i = 0; i < v.vlist.size(); i++)
+				{
+					if (i < vlist.size() && vlist[i].p == v.vlist[i].p)
+					{
+						continue;
+					}
+					e.vlist.push_back(v.vlist[i]);
+				}
+			}
+
+			else if (type == REAL && v.type == REAL)
+			{
+				PRINT("| REAL REAL");
+				return fval || v.fval;
+			}
+			else
+			{
+				ERRORMSG("| ERROR");
+			}
+			return e;
+		}
+		EDGE operator ^ (const EDGE& v) const
+		{
+			EDGE e;
+			if (type == VLIST && v.type == VLIST)
+			{
+				PRINT("^ VLIST VLIST");
+
+				e.type = VLIST;
+
+				if (vlist.empty())
+					return v;
+
+				int start1 = 0, start2 = 0;
+ADDLIST1:
+				for (int i = start1; i < vlist.size(); i++)
+				{
+					for (int j = start2; j < v.vlist.size(); j++)
+					{
+						if (vlist[i].p == v.vlist[j].p)
+						{
+							PRINT("SAMEA " << i);
+							e.vlist.push_back(vlist[i]);
+							start2 = j + 1;
+							goto ADDLIST2;
+						}
+					}
+					e.vlist.push_back(vlist[i]);
+				}
+ADDLIST2:
+				for (int i = start2; i < v.vlist.size(); i++)
+				{
+					for (int j = start1; j < vlist.size(); j++)
+					{
+						if (v.vlist[i].p == vlist[j].p)
+						{
+							PRINT("SAMEB " << i);
+							e.vlist.push_back(v.vlist[i]);
+							start1 = j + 1;
+							goto ADDLIST1;
+						}
+					}
+					e.vlist.push_back(v.vlist[i]);
+				}
+			}
+			else
+			{
+				ERRORMSG("^ ERROR");
+			}
+			return e;
+		}
+		EDGE operator & (const EDGE& v) const
+		{
+			EDGE e;
+			if (type == VLIST && v.type == VLIST)
+			{
+				PRINT("& VLIST VLIST");
+
+				e.type = VLIST;
+
+				if (vlist.empty())
+					return v;
+
+				for (int i = 0; i < v.vlist.size(); i++)
+				{
+					if (i < vlist.size() && vlist[i] == v.vlist[i].p)
+					{
+						e.vlist.push_back(v.vlist[i]);
+					}
+				}
+			}
+			else if (type == REAL && v.type == REAL)
+			{
+				PRINT("& REAL REAL");
+				return fval && v.fval;
+			}
+			else
+			{
+				ERRORMSG("| error");
+			}
+			return e;
+		}
 	};
 
-	inline void _PHGPRINT(const EDGE& e)
+	inline void _PHGPRINT(const std::string& name, const EDGE& e)
 	{
-		if(e.type == EDGE::REAL)
-			PRINT(e.fval);
+		if (e.type == EDGE::REAL)
+		{
+			PRINT(name << "=" << e.fval);
+		}
+		else if (e.type == EDGE::QUAT)
+		{
+			PRINT(name << " = " << e.q.x << "," << e.q.y << "," << e.q.z << "," << e.q.w)
+		}
 		for (auto& i : e.vlist)
 			PRINTVEC3(i.p)
 	}
@@ -263,6 +411,21 @@ namespace PMHG
 			var a = cd.valstack.pop();
 			return a / b;
 		}
+		case '|': {
+			var b = cd.valstack.pop();
+			var a = cd.valstack.pop();
+			return a | b;
+		}
+		case '^': {
+			var b = cd.valstack.pop();
+			var a = cd.valstack.pop();
+			return a ^ b;
+		}
+		case '&': {
+			var b = cd.valstack.pop();
+			var a = cd.valstack.pop();
+			return a & b;
+		}
 		case '>': {
 			var b = cd.valstack.pop();
 			var a = cd.valstack.pop();
@@ -274,6 +437,18 @@ namespace PMHG
 			var a = cd.valstack.pop();
 
 			return var(a.fval < b.fval ? 1.0f : 0.0f);
+		}
+		case '!': {
+			if (args > 1) {
+				var b = cd.valstack.pop();
+				var a = cd.valstack.pop();
+				return !(b == a);
+			}
+			else
+			{
+				var a = cd.valstack.pop();
+				return !a;
+			}
 		}
 		default: {return 0; }
 		}
@@ -300,7 +475,7 @@ namespace PMHG
 	// table
 	static void _table(code& cd)
 	{
-		PRINT("TABLE: " << gtable.size() + 1);
+		PRINT("TABLE: " << gtable.size());
 
 		cd.next();
 
@@ -312,15 +487,16 @@ namespace PMHG
 		while (!cd.eoc()) {
 			char c = cd.cur();
 			if (c == ']') {
-				PRINTVEC4(q);
 				//PRINTV(vcnt);
 				if (vcnt == 3)
 				{
+					PRINTVEC3(q.xyz());
 					edge.type = EDGE::VLIST;
 					edge.vlist.push_back(q.xyz());
 				}
 				else if (vcnt == 4)
 				{
+					PRINTVEC3(q);
 					edge.type = EDGE::QUAT;
 					edge.q = q;
 				}
@@ -334,14 +510,15 @@ namespace PMHG
 				break;
 			}
 			else if (c == ';') {
-				PRINTVEC4(q);
 				//PRINTV(vcnt);
 				if (vcnt == 3)
 				{
+					PRINTVEC3(q.xyz());
 					edge.vlist.push_back(q.xyz());
 				}
 				else if(vcnt == 4)
 				{
+					PRINTVEC4(q);
 					edge.q = q;
 				}
 
@@ -417,28 +594,14 @@ namespace PMHG
 	void setup()
 	{
 		initphg();
-
-		table = _table;
+		{
+			table = _table;
+			// zero element
+			gtable.clear();
+			EDGE e; e.vlist.push_back(vec3::ZERO);
+			gtable.push_back(e);
+		}
 		act = _act;
-		
-		register_api("render",
-			[](code& cd, int args)->var {
-				estack.clear();
-				for (auto& it : gtable)
-				{
-					vec3 lastp;
-					for (int i = 0; i < it.vlist.size(); i++)
-					{
-						auto& vit = it.vlist[i];
-						pointi(point_t(vit.p.x * 50, vit.p.y * 50), 8, 0xFF0000FF);
-						if (i != 0)
-							drawlinei(lastp.xy() * 50, vit.p.xy() * 50, 0xFF0000FF);
-						lastp = vit.p;
-					}
-					estack.push_back(it.vlist);
-				}
-				return INVALIDVAR;
-			});
 	}
 }
 
@@ -449,6 +612,7 @@ static var pushe(PMHG::code& cd, int args)
 	if (args == 1)
 	{
 		estack.push_back(PHG_PARAM(1).vlist);
+		closeedge(estack.back());
 	}
 	else
 	{
@@ -530,5 +694,11 @@ static void initphg()
 
 void test()
 {
+	{// zero element
+		PMHG::gtable.clear();
+		PMHG::EDGE e; e.vlist.push_back(vec3::ZERO);
+		PMHG::gtable.push_back(e);
+	}
+
 	PMHG::dofile("main.e");
 }
