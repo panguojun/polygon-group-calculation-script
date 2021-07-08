@@ -634,9 +634,8 @@ static void statement_default(code& cd) {
 	}
 	else if (cd.cur() == '>') {
 		cd.next();
-		string name = cd.getname();
 		const var& v = expr(cd);
-		PHGPRINT(name, v);
+		PHGPRINT("> ", v);
 		cd.next();
 	}
 	else
