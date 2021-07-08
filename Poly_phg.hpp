@@ -329,7 +329,7 @@ namespace PMHG
 			}
 			else
 			{
-				ERRORMSG("| error");
+				ERRORMSG("& error");
 			}
 			return e;
 		}
@@ -587,7 +587,7 @@ static var pushe(PMHG::code& cd, int args)
 	if (args == 1)
 	{
 		estack.push_back(PHG_PARAM(1).vlist);
-		//closeedge(estack.back());
+		closeedge(estack.back());
 	}
 	else
 	{
@@ -633,7 +633,8 @@ static var facepoly(PMHG::code& cd, int args)
 		return INVALIDVAR;
 
 	std::vector<vec3> tris;
-	POLY::link_tri(estack.back(), vec3::UX, tris);
+	VECLIST e = estack.back();
+	POLY::link_tri(e, vec3::UX, tris);
 	for (int i = 0; i < tris.size(); i += 3)
 	{
 		triang0(tris[i], tris[i + 1], tris[i + 2]);
@@ -643,12 +644,6 @@ static var facepoly(PMHG::code& cd, int args)
 static var face(PMHG::code& cd, int args)
 {
 	face(estack[estack.size() - 2], estack.back());
-
-	return 0;
-}
-static var face0(PMHG::code& cd, int args)
-{
-	CUTSM::drawclosededge(estack.back());
 
 	return 0;
 }
@@ -667,8 +662,6 @@ static void initphg()
 	PMHG::register_api("ext", extrudeedge);
 
 	PMHG::register_api("face", face);
-	PMHG::register_api("face0", face0);
-
 	PMHG::register_api("facepoly", facepoly);
 }
 // ======================================================================
