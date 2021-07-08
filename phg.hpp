@@ -281,6 +281,13 @@ static struct code
 		}
 		return (*ptr);
 	}
+	char next3() {
+		while (!eoc(++ptr)) {
+			if (!checkspace(*(ptr)) && !isname(*(ptr)) && !isnum(*(ptr)))
+				break;
+		}
+		return (*ptr);
+	}
 	char nextline() {
 		while (!eoc(++ptr) && !checkline(*(ptr)));
 		return (*++ptr);
@@ -317,7 +324,7 @@ static struct code
 		static char buf[128];
 		char* pbuf = buf;
 		const char* p = ptr;
-		while (!eoc(p) && (isname(*p) || isdigit(*p)))
+		while (!eoc(p) && (isname(*p) || isnum(*p)))
 			*(pbuf++) = *(p++);
 		(*pbuf) = '\0';
 		return buf;
@@ -649,7 +656,7 @@ static int subtrunk(code& cd, var& ret)
 {
 	while (!cd.eoc()) {
 		short type = get(cd);
-			
+		//PRINTV(cd.cur());
 		if (cd.cur() == '{') 
 		{
 			cd.next();
@@ -728,8 +735,10 @@ static int subtrunk(code& cd, var& ret)
 				int loopcnt = toint(expr(cd));
 				cd.next();
 				const char* cp = cd.ptr;
-				for (int i = 1; i < loopcnt; i++) {
+				for (int i = 1; i <= loopcnt; i++) {
+					cd.ptr = cp;
 					int rettype = subtrunk(cd, ret);
+					
 					if (rettype == 1)
 					{
 						finishtrunk(cd, 1);
@@ -738,8 +747,7 @@ static int subtrunk(code& cd, var& ret)
 					if (rettype == 2) {
 						return rettype;
 					}
-
-					cd.ptr = cp;
+					
 					PRINT("loop " << i);
 				}
 			}
@@ -768,7 +776,7 @@ static var callfunc_phg(code& cd) {
 	funcname fnm = cd.getname();
 	PRINT("callfunc: " << fnm << "()");
 	PRINT("{");
-	ASSERT(cd.next2() == '(');
+	ASSERT(cd.next3() == '(');
 
 	cd.next();
 	while (!cd.eoc()) {
@@ -798,7 +806,7 @@ static var callfunc_phg(code& cd) {
 	}
 	cd.ptr = cd.funcnamemap[fnm];
 
-	cd.next2();
+	cd.next3();
 	ASSERT(cd.cur() == '(');
 
 	cd.varmapstack.push();
