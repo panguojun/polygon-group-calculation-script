@@ -186,6 +186,20 @@ namespace PMHG
 			}
 			return e;
 		}
+		EDGE invert() const
+		{
+			PRINT("invert");
+			EDGE e;
+			e.type = type;
+			if (type == VLIST)
+			{
+				for (int i = vlist.size()-1; i >= 0; i--)
+				{
+					e.vlist.push_back(vlist[i].p);
+				}
+			}
+			return e;
+		}
 		EDGE operator * (const EDGE& v) const
 		{
 			EDGE e;
@@ -200,25 +214,35 @@ namespace PMHG
 				PRINT("* REAL " << v.fval);
 				for (int i = 0; i < len; i++)
 					e = e + (*this);
-				
 			}
 			else if (type == VLIST && v.type == QUAT)
 			{
 				PRINT("* QUAT");
 				e.vlist = vlist;
+				vec3 lstp;
 				for (int i = 0; i < e.vlist.size(); i++)
 				{
 					quaternion q;
 					q.fromangleaxis(v.q.w * PI / 180.0f, v.q.xyz().normcopy());
 					
 					e.vlist[i].p =  q * (e.vlist[i].p * v.q.xyz().len());
+
+					vec3 v = e.vlist[i].p - lstp;
+
+					fabs(v.x) < 1e-3 ? v.x = 0 : (v.x > 0 ? v.x = 1 : v.x = -1);
+					fabs(v.y) < 1e-3 ? v.y = 0 : (v.y > 0 ? v.y = 1 : v.y = -1);
+					fabs(v.z) < 1e-3 ? v.z = 0 : (v.z > 0 ? v.z = 1 : v.z = -1);
+
+					e.vlist[i].p = lstp + v;
+
+					lstp = e.vlist[i].p;
 				}
 			}
 			else if (type == REAL && v.type == REAL)
 			{
 				e.type = REAL;
 				PRINT("* REAL REAL");
-				e.fval = e.fval * v.fval;
+				e.fval = fval * v.fval;
 			}
 			else if (type == REAL && v.type == VLIST)
 			{
@@ -230,9 +254,16 @@ namespace PMHG
 			}
 			else if (type == QUAT && v.type == QUAT)
 			{
-				e.type = QUAT;
+				ERRORMSG("* QUAT QUAT");
+
+				/*e.type = QUAT;
 				PRINT("* QUAT QUAT");
-				e.q = q * v.q;
+				quaternion q1;
+				q1.fromangleaxis(q.w * PI / 180.0f, q.xyz().normcopy());
+				quaternion q2;
+				q2.fromangleaxis(v.q.w * PI / 180.0f, v.q.xyz().normcopy());
+
+				e.q = q1 * q2;*/
 			}
 			else
 			{
@@ -258,7 +289,7 @@ namespace PMHG
 			}
 			return e;
 		}
-		inline void merge(VECLIST& out, const VECLIST& e1, int pos1, const VECLIST& e2, int pos2) const
+		inline void _merge(VECLIST& out, const VECLIST& e1, int pos1, const VECLIST& e2, int pos2) const
 		{
 			for (; pos1 < e1.size(); pos1++)
 			{
@@ -268,7 +299,7 @@ namespace PMHG
 					{
 						PRINT("merg2e " << pos1 << "," << pos1);
 						out.push_back(e1[pos1]);
-						return merge(out, e2, j + 1, e1, pos1 + 1);
+						return _merge(out, e2, j + 1, e1, pos1 + 1);
 					}
 				}
 				out.push_back(e1[pos1]);
@@ -286,7 +317,7 @@ namespace PMHG
 				if (vlist.empty())
 					return v;
 				
-				merge(e.vlist, vlist, 0, v.vlist, 0);
+				_merge(e.vlist, vlist, 0, v.vlist, 0);
 				PRINTV(e.vlist.size());
 			}
 
@@ -334,9 +365,18 @@ namespace PMHG
 			return e;
 		}
 	};
-
+	extern std::vector<EDGE> gtable;
+	EDGE gcuredge;
 	inline void _PHGPRINT(const std::string& pre, const EDGE& e)
 	{
+		if (e.type == EDGE::VLIST)
+		{
+			estack.push_back(e.vlist);
+			closeedge(estack.back());
+		}
+
+		gtable.push_back(e);
+		gcuredge = e;
 		if (e.type == EDGE::REAL)
 		{
 			PRINT(pre << e.fval);
@@ -345,7 +385,7 @@ namespace PMHG
 		{
 			quaternion q;
 			q.fromangleaxis(e.q.w * PI / 180.0f, e.q.xyz().normcopy());
-			PRINT(pre << q.x << "," << q.y << "," << q.z << "," << q.w)
+			PRINT(pre << q.x << "," << q.y << "," << q.z << "," << q.w);
 		}
 		for (auto& i : e.vlist)
 			PRINTVEC3(i.p)
@@ -422,6 +462,10 @@ namespace PMHG
 			else
 			{
 				var a = cd.valstack.pop();
+				if (a.type == var::VLIST)
+				{
+					return a.invert();
+				}
 				return !a;
 			}
 		}
@@ -586,8 +630,11 @@ static var pushe(PMHG::code& cd, int args)
 	//PRINTV(PHG_PARAM(1).vlist.size());
 	if (args == 1)
 	{
-		estack.push_back(PHG_PARAM(1).vlist);
-		closeedge(estack.back());
+		if (PHG_PARAM(1).vlist.size() > 0)
+		{
+			estack.push_back(PHG_PARAM(1).vlist);
+			closeedge(estack.back());
+		}
 	}
 	else
 	{
@@ -664,11 +711,41 @@ static void initphg()
 	PMHG::register_api("face", face);
 	PMHG::register_api("facepoly", facepoly);
 }
+
+//------------------------------------------
+// VB
+//------------------------------------------
+
+extern "C"
+{
+	 int EXPORT_API _stdcall VB_dopmhg(const char* script)
+	{
+		std::string str(script);
+		PRINTV(str);
+
+		PMHG::dostring(str.c_str());
+		return 0;
+	}
+	EXPORT_API float _stdcall VB_curval()
+	{
+		return PMHG::gcuredge.fval;
+	}
+	EXPORT_API float _stdcall VB_setcur(int index)
+	{
+		PRINT(index);
+		PMHG::gcuredge = PMHG::gtable[index];
+		return PMHG::gcuredge.fval;
+	}
+	EXPORT_API int _stdcall VB_tablecnt()
+	{
+		return PMHG::gtable.size();
+	}
+}
+
 // ======================================================================
 // test
 // ======================================================================
-
-void test()
+void test111()
 {
 	{// zero element
 		PMHG::gtable.clear();
