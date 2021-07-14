@@ -32,6 +32,7 @@ yy = yy + 1;
 > yy;
 
 ****************************************************************************/
+
 //#define PHG_VAR(name, defaultval) (PHG::gcode.varmapstack.stack.empty() || PHG::gcode.varmapstack.stack.front().find(#name) == PHG::gcode.varmapstack.stack.front().end() ? defaultval : PHG::gcode.varmapstack.stack.front()[#name])
 //#define PHG_PARAM(index)	cd.valstack.get(args - index)
 
@@ -67,6 +68,10 @@ static statement_fun statement = 0;
 char rank[256];
 
 std::vector<var> gtable;
+
+extern struct varmapstack_t;
+extern varmapstack_t	gvarmapstack;
+
 inline int add2table(const var& v)
 {
 	for (int i = 0; i < gtable.size(); i++)
@@ -105,7 +110,7 @@ inline bool checkspace(char c) {
 	return (c == ' ' || c == '\t' || c == '\n' || c == '\r');
 }
 inline bool iscalc(char c) {
-	return c == '+' || c == '-' || c == '*' || c == '/' || c == '!';
+	return c == '+' || c == '-' || c == '*' || c == '/' || c == '!' || c == '&' || c == '|';
 }
 inline bool islogic(char c) {
 	return c == '>' || c == '<' || c == '=' || c == '&' || c == '|' || c == '^';
@@ -233,7 +238,7 @@ static struct varmapstack_t
 	}
 	var getvar(const char* name)
 	{
-		//PRINT("getvar = " << name)
+		PRINT("getvar = " << name)
 		if (stack.empty())
 			return INVALIDVAR;
 
@@ -241,7 +246,10 @@ static struct varmapstack_t
 		{
 			varmap_t& varlist = stack[i];
 			if (varlist.find(name) != varlist.end())
+			{
+				PRINT("x");
 				return varlist[name];
+			}
 		}
 
 		return INVALIDVAR;
@@ -250,15 +258,16 @@ static struct varmapstack_t
 	{
 		stack.clear();
 	}
-};
+} gvarmapstack;
 
 // -----------------------------------------------------------------------
 // code
+
 static struct code
 {
 	const char* ptr;
 	std::map<funcname, functionptr>	funcnamemap;		
-	varmapstack_t	varmapstack;
+	//varmapstack_t	varmapstack;
 
 	codestack_t		codestack;
 	valstack_t		valstack;
@@ -267,7 +276,7 @@ static struct code
 	code() {}
 	code(const char* buf) {
 		ptr = buf;
-		varmapstack.clear();
+		//varmapstack.clear();
 		funcnamemap.clear();
 	}
 	char next() {
@@ -489,7 +498,7 @@ static void getval(code& cd, short type) {
 			cd.valstack.push(callfunc(cd));
 		}
 		else {
-			cd.valstack.push(cd.varmapstack.getvar(cd.getname()));
+			cd.valstack.push(gvarmapstack.getvar(cd.getname()));
 			cd.next2();
 		}
 		if (cd.oprstack.empty() || !(iscalc(cd.oprstack.cur()) || islogic(cd.oprstack.cur()))) {
@@ -519,10 +528,10 @@ static void finishtrunk(code& cd, int trunkcnt = 0, char sk = '{', char ek = '}'
 
 // -----------------------------------------------------------------------
 // 表达式 for example: x=a+b, v = fun(x), x > 2 || x < 5
-static var expr(code& cd)
+static var expr(code& cd, int args0 = 0)
 {
 	//PRINT("expr(");
-	int args = 0;
+	int args = args0;
 	while (!cd.eoc()) {
 		short type = get(cd);
 		if (type == NAME || type == NUMBER) {
@@ -536,9 +545,9 @@ static var expr(code& cd)
 			else
 				cd.oprstack.push(o);
 
-			if (iscalc(cd.cur())) {
-				args++;
-			}
+			//if (iscalc(cd.cur())) {
+				//args++;
+			//}
 
 			cd.next();
 
@@ -565,12 +574,12 @@ static var expr(code& cd)
 
 					if (rank[o] >= rank[no]) {
 						getval(cd, type);
-						cd.valstack.push(act(cd, args));
 						args++;
+						cd.valstack.push(act(cd, args));
 					}
 					else {
 						getval(cd, type);
-						cd.valstack.push(expr(cd));
+						cd.valstack.push(expr(cd, 1));
 						args++;
 					}
 				}
@@ -622,7 +631,7 @@ static void singvar(code& cd) {
 
 	var v = expr(cd);
 	cd.next();
-	cd.varmapstack.addvar(name.c_str(), v);
+	gvarmapstack.addvar(name.c_str(), v);
 }
 
 // statement
@@ -809,7 +818,7 @@ static var callfunc_phg(code& cd) {
 	cd.next3();
 	ASSERT(cd.cur() == '(');
 
-	cd.varmapstack.push();
+	gvarmapstack.push();
 	cd.next();
 	std::vector<std::string> paramnamelist;
 	std::vector<var> paramvallist;
@@ -831,12 +840,12 @@ static var callfunc_phg(code& cd) {
 
 	for(int i = 0; i < paramnamelist.size(); i ++)
 	{
-		cd.varmapstack.addvar(paramnamelist[i].c_str(), paramvallist[paramvallist.size() - 1 - i]);
+		gvarmapstack.addvar(paramnamelist[i].c_str(), paramvallist[paramvallist.size() - 1 - i]);
 	}
 
 	var ret = INVALIDVAR;
 	ASSERT(subtrunk(cd, ret) == 2);
-	cd.varmapstack.pop();
+	gvarmapstack.pop();
 
 	cd.ptr = cd.codestack.pop();
 	PRINT("return ");
@@ -906,9 +915,13 @@ static void parser_default(code& cd) {
 
 	//getchar();
 
-	cd.varmapstack.push();
+	PRINTV(gvarmapstack.stack.size());
+	gvarmapstack.push();
+
 	while (!cd.eoc()) {
 		short type = get(cd);
+
+		//PRINTV(cd.cur());
 
 		if (type == '\''){
 			cd.nextline();
