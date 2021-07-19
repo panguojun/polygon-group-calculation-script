@@ -509,7 +509,7 @@ static void getval(code& cd, short type) {
 		}
 		else {
 			cd.valstack.push(gvarmapstack.getvar(cd.getname()));
-			cd.next2();
+			cd.next3();
 		}
 		if (cd.oprstack.empty() || !(iscalc(cd.oprstack.cur()) || islogic(cd.oprstack.cur()))) {
 			cd.oprstack.push('.');
