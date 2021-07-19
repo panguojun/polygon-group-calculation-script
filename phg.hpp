@@ -65,7 +65,7 @@ static parser_fun parser = 0;
 typedef void(*statement_fun)(code& cd);
 static statement_fun statement = 0;
 
-char rank[256];
+static char rank[256];
 
 std::vector<var> gtable;
 
@@ -217,12 +217,12 @@ static struct varmapstack_t
 		
 	void push()
 	{
-		PRINT("varmapstack PUSH");
+		//PRINT("varmapstack PUSH");
 		stack.push_back(varmap_t());
 	}
 	void pop()
 	{
-		PRINT("varmapstack POP");
+		//PRINT("varmapstack POP");
 		stack.pop_back();
 	}
 	void addvar(const char* name, const var& v)
@@ -247,7 +247,6 @@ static struct varmapstack_t
 			varmap_t& varlist = stack[i];
 			if (varlist.find(name) != varlist.end())
 			{
-				PRINT("x");
 				return varlist[name];
 			}
 		}
@@ -322,6 +321,14 @@ static struct code
 		}
 		return (*p);
 	}
+	char getnext4() {
+		const char* p = ptr;
+		while (!eoc(++p)) {
+			if (!checkspace(*(p)) && (!isname(*(p)) && !isnum(*(p))))
+				break;
+		}
+		return (*p);
+	}
 	bool eoc(const char* p = 0) {
 		p == 0 ? p = ptr : 0;
 		return (*p) == '\0';
@@ -333,8 +340,11 @@ static struct code
 		static char buf[128];
 		char* pbuf = buf;
 		const char* p = ptr;
-		while (!eoc(p) && (isname(*p) || isnum(*p)))
-			*(pbuf++) = *(p++);
+		if (!eoc(p) && !isnum(*p))
+		{
+			while (!eoc(p) && !checkspace(*p) && (isname(*p) || isnum(*p)))
+				*(pbuf++) = *(p++);
+		}
 		(*pbuf) = '\0';
 		return buf;
 	}
@@ -563,7 +573,6 @@ static var expr(code& cd, int args0 = 0)
 					args++;
 				}
 				char no = cd.getnext3();
-				//PRINTV(no);
 				if (cd.cur() != '(' && 
 					iscalc(no))
 				{
@@ -624,8 +633,8 @@ static var expr(code& cd, int args0 = 0)
 // single var
 static void singvar(code& cd) {
 	string name = cd.getname();
-	//PHGPRINT("singvar: " << name);
-	cd.next2();
+	PRINT("singvar: " << name);
+	cd.next3();
 	ASSERT(cd.cur() == '=');
 	cd.next();
 
@@ -639,7 +648,7 @@ static void statement_default(code& cd) {
 		
 	short type = get(cd);
 	if (type == NAME) {
-		char nc = cd.getnext2();
+		char nc = cd.getnext4();
 		if (nc == '=') {
 			singvar(cd);
 		}
