@@ -1,24 +1,18 @@
 #pragma once
 // ======================================================================
-// PMHG
+// PMHG GROUP
 // ======================================================================
-#undef var
-#undef INVALIDVAR
-
-#define var			PMHG::EDGE
-#define INVALIDVAR	PMHG::EDGE(0)
-
-#undef PHGPRINT
-#define PHGPRINT	PMHG::_PHGPRINT
-
-#define PHG_VAR(name, defaultval) (PMHG::gcode.varmapstack.stack.empty() || PMHG::gcode.varmapstack.stack.front().find(#name) == PMHG::gcode.varmapstack.stack.front().end() ? defaultval : PMHG::gcode.varmapstack.stack.front()[#name])
-#define PHG_PARAM(index)	cd.valstack.get(args - index)
+#define GROUP		PMHG
+#define ELEMENT		PMHG::EDGE
+//#define WANGGE_DUIQI
 
 extern void initphg();
 
 namespace PMHG
 {
-	// 运算
+	#include "phg_head.hpp"
+
+	// Element
 	struct EDGE
 	{
 		enum {REAL, QUAT, VLIST};
@@ -41,6 +35,11 @@ namespace PMHG
 		{
 			type = QUAT;
 			q = _q;
+		}
+		EDGE(VECLIST& e)
+		{
+			type = VLIST;
+			vlist = e;
 		}
 		EDGE(const EDGE& v) {
 			type = v.type;
@@ -112,7 +111,8 @@ namespace PMHG
 					{
 						if (np == e.vlist[i].p)
 						{
-							e.vlist.assign(e.vlist.begin(), e.vlist.begin() + i + 1);
+							if (i != 0)
+								e.vlist.assign(e.vlist.begin(), e.vlist.begin() + i + 1);
 							bloop = true;
 							break;
 						}
@@ -123,14 +123,7 @@ namespace PMHG
 			}
 			else if (type == VLIST && v.type == QUAT)
 			{
-				PRINT("+ VLIST QUAT");
-
-				e.type = VLIST;
-				e.vlist = vlist;
-				for (int i = 0; i < e.vlist.size(); i++)
-				{
-					e.vlist[i] = e.vlist[i] + v.q.xyz();
-				}
+				ERRORMSG("+ VLIST QUAT");
 			}
 			else if (type == QUAT && v.type == QUAT)
 			{
@@ -186,7 +179,7 @@ namespace PMHG
 			}
 			return e;
 		}
-		EDGE invert() const
+		inline EDGE invert() const
 		{
 			PRINT("invert");
 			EDGE e;
@@ -220,6 +213,7 @@ namespace PMHG
 				PRINT("* QUAT");
 				e.vlist = vlist;
 				vec3 lstp;
+				bool bgridalign = getedgenorm(vlist) == vec3::UY;
 				for (int i = 0; i < e.vlist.size(); i++)
 				{
 					quaternion q;
@@ -229,9 +223,13 @@ namespace PMHG
 
 					vec3 v = e.vlist[i].p - lstp;
 
-					fabs(v.x) < 1e-3 ? v.x = 0 : (v.x > 0 ? v.x = 1 : v.x = -1);
-					fabs(v.y) < 1e-3 ? v.y = 0 : (v.y > 0 ? v.y = 1 : v.y = -1);
-					fabs(v.z) < 1e-3 ? v.z = 0 : (v.z > 0 ? v.z = 1 : v.z = -1);
+					// 网格对齐！
+					if(bgridalign)
+					{
+						fabs(v.x) < 1e-3 ? v.x = 0 : (v.x > 0 ? v.x = 1 : v.x = -1);
+						fabs(v.y) < 1e-3 ? v.y = 0 : (v.y > 0 ? v.y = 1 : v.y = -1);
+						fabs(v.z) < 1e-3 ? v.z = 0 : (v.z > 0 ? v.z = 1 : v.z = -1);
+					}
 
 					e.vlist[i].p = lstp + v;
 
@@ -254,16 +252,17 @@ namespace PMHG
 			}
 			else if (type == QUAT && v.type == QUAT)
 			{
-				ERRORMSG("* QUAT QUAT");
+				//ERRORMSG("* QUAT QUAT");
 
-				/*e.type = QUAT;
+				e.type = QUAT;
 				PRINT("* QUAT QUAT");
-				quaternion q1;
+				/*quaternion q1;
 				q1.fromangleaxis(q.w * PI / 180.0f, q.xyz().normcopy());
 				quaternion q2;
-				q2.fromangleaxis(v.q.w * PI / 180.0f, v.q.xyz().normcopy());
+				q2.fromangleaxis(v.q.w * PI / 180.0f, v.q.xyz().normcopy());*/
 
-				e.q = q1 * q2;*/
+				e.q = q;
+				e.q.w = v.q.w + q.w;
 			}
 			else
 			{
@@ -295,9 +294,12 @@ namespace PMHG
 			{
 				for (int j = pos2; j < e2.size(); j++)
 				{
+					PRINT(e1.size() << " pos1=" << pos1 <<";" << e2.size() << ",j=" << j);
+					
 					if (e1[pos1].p == e2[j].p)
 					{
-						PRINT("merg2e " << pos1 << "," << pos1);
+						PRINT("merg2e " << pos1 << "," << j);
+						
 						out.push_back(e1[pos1]);
 						return _merge(out, e2, j + 1, e1, pos1 + 1);
 					}
@@ -364,9 +366,26 @@ namespace PMHG
 			}
 			return e;
 		}
+		bool intersect(const EDGE& v)
+		{
+			for (int i = 0; i < vlist.size(); i++)
+			{
+				for (int j = 0; j < v.vlist.size(); j++)
+				{
+					if (vlist[i].p == v.vlist[j].p)
+					{
+						return true;
+					}
+				}
+			}
+			return false;
+		}
 	};
+
+	// ------------------------------------------
 	extern std::vector<EDGE> gtable;
 	EDGE gcuredge;
+	// print
 	inline void _PHGPRINT(const std::string& pre, const EDGE& e)
 	{
 		if (e.type == EDGE::VLIST)
@@ -391,8 +410,9 @@ namespace PMHG
 			PRINTVEC3(i.p)
 	}
 
+	// ------------------------------------------
 	#include "phg.hpp"
-
+	// ------------------------------------------
 	// act
 	var _act(code& cd, int args)
 	{
@@ -473,6 +493,7 @@ namespace PMHG
 		}
 	}
 
+	// ------------------------------------------
 	inline real chars2real(code& cd)
 	{
 		static char buff[128];
@@ -609,7 +630,7 @@ namespace PMHG
 			}
 		}
 	}
-	
+
 	void setup()
 	{
 		initphg();
@@ -624,7 +645,9 @@ namespace PMHG
 	}
 }
 
-// ---------------------------------------------------------------
+// ------------------------------------------
+// api
+// ------------------------------------------
 static var pushe(PMHG::code& cd, int args)
 {
 	//PRINTV(PHG_PARAM(1).vlist.size());
@@ -645,35 +668,158 @@ static var pushe(PMHG::code& cd, int args)
 			estack.push_back(estack.back());
 		}
 	}
-
 	return 0;
 }
 static var pope(PMHG::code& cd, int args)
 {
-	estack.pop_back();
+	if (estack.empty())
+		return 0;
+
+	int n = 1;
+	if (args == 1)
+		n = PHG_PARAM(1).fval;
+	for (int i = 0; i < n; i++)
+		estack.pop_back();
 
 	return 0;
 }
-
 static var extrudeedge(PMHG::code& cd, int args)
 {
-	ASSERT(args == 1);
-
-	float d = PHG_PARAM(1).fval;
-
-	VECLIST& e1 = estack.back();
-	vec norm = getedgenorm2(e1);
-	vec dv = norm * d;
+	if (args == 1)
 	{
-		for (int i = 0; i < e1.size(); i++)
+		float d = PHG_PARAM(1).fval;
+
+		VECLIST& e1 = estack.back();
+		vec norm = getedgenorm2(e1);
+		vec dv = norm * d;
 		{
-			e1[i].p += dv;
-			e1[i].ind = -1;
+			for (int i = 0; i < e1.size(); i++)
+			{
+				e1[i].p += dv;
+				e1[i].ind = -1;
+			}
+		}
+	}
+	else if (args == 2)
+	{
+		PMHG::EDGE e = PHG_PARAM(1);
+		VECLIST& e1 = e.vlist;
+		float d = PHG_PARAM(2).fval;
+		vec norm = getedgenorm2(e1);
+		vec dv = norm * d;
+		{
+			for (int i = 0; i < e1.size(); i++)
+			{
+				e1[i].p += dv;
+				e1[i].ind = -1;
+			}
+		}
+		return e;
+	}
+	return INVALIDVAR;
+}
+static var moveedge(PMHG::code& cd, int args)
+{
+	if (args == 4)
+	{
+		PMHG::EDGE e = PHG_PARAM(1);
+		float x = PHG_PARAM(2).fval;
+		float y = PHG_PARAM(3).fval;
+		float z = PHG_PARAM(4).fval;
+		for (int i = 0; i < e.vlist.size(); i++)
+		{
+			e.vlist[i] = (e.vlist[i] + vec3(x, y, z));
+		}
+		return e;
+	}
+	else if(args == 3)
+	{
+		float x = PHG_PARAM(1).fval;
+		float y = PHG_PARAM(2).fval;
+		float z = PHG_PARAM(3).fval;
+
+		VECLIST& e = estack.back();
+		for (int i = 0; i < e.size(); i++)
+		{
+			e[i] = (e[i] + vec3(x, y, z));
 		}
 	}
 	return INVALIDVAR;
 }
 
+static var yawedge(PMHG::code& cd, int args)
+{
+	float ang = PHG_PARAM(1).fval * PI / 180.0f;
+	vec enorm = getedgenorm2(estack.back());
+	rotedge(estack.back(), ang, enorm);
+	if(coordstack.empty())
+		coordstack.push_back(coord_t(estack.back()));
+	coordstack.back().ux.rot(ang, enorm);
+	coordstack.back().uz.rot(ang, enorm);
+	return 0;
+}
+static var pitchedge(PMHG::code& cd, int args)
+{
+	float ang = PHG_PARAM(1).fval * PI / 180.0f;
+	VECLIST& e = estack.back();
+	vec ux, uy, uz;
+	edgeax2(e, ux, uy, uz);
+	if (weightlist.size() == e.size())
+	{
+		VECLIST oe;
+		rotedge(e, ang, ux, oe);
+		for (int i = 0; i < e.size(); i++)
+		{
+			e[i].p = blend(e[i].p, oe[i].p, weightlist[i]);
+		}
+	}
+	else
+	{
+		rotedge(e, ang, ux);
+	}
+	if (coordstack.empty())
+		coordstack.push_back(coord_t(estack.back()));
+	coordstack.back().uy.rot(ang, ux);
+	coordstack.back().uz.rot(ang, ux);
+	return 0;
+}
+static var rolledge(PMHG::code& cd, int args)
+{
+	float ang = PHG_PARAM(1).fval * PI / 180.0f;
+	VECLIST& e = estack.back();
+	vec ux, uy, uz;
+	edgeax2(e, ux, uy, uz);
+	rotedge(e, ang, uz);
+	if (coordstack.empty())
+		coordstack.push_back(coord_t(estack.back()));
+	coordstack.back().uy.rot(ang, uz);
+	coordstack.back().ux.rot(ang, uz);
+	return 0;
+}
+static var getcenter(PMHG::code& cd, int args)
+{
+	ASSERT(args == 1);
+
+	vec o = getedgecenter(PHG_PARAM(1).vlist);
+	PMHG::EDGE e;
+	e.type = PMHG::EDGE::QUAT;
+	e.q = quaternion(o.x, o.y, o.z, 0);
+
+	return e;
+}
+inline var facepoly(VECLIST& e, vec3 ux = vec::UX)
+{
+	vec3 n = getedgenorm(e);
+	if (n == ux)
+		ux = vec::UZ;
+	std::vector<vec3> tris;
+	POLY::link_tri(e, ux, tris);
+	for (int i = 0; i < tris.size(); i += 3)
+	{
+		triang0(tris[i], tris[i + 1], tris[i + 2]);
+	}
+	return INVALIDVAR;
+}
 static var facepoly(PMHG::code& cd, int args)
 {
 	if (estack.empty())
@@ -681,21 +827,79 @@ static var facepoly(PMHG::code& cd, int args)
 
 	std::vector<vec3> tris;
 	VECLIST e = estack.back();
-	POLY::link_tri(e, vec3::UX, tris);
+	vec3 n = getedgenorm(e);
+	vec3 vx, vy; v2vxvy(n, vx, vy);
+	POLY::link_tri(e, vx, tris);
 	for (int i = 0; i < tris.size(); i += 3)
 	{
 		triang0(tris[i], tris[i + 1], tris[i + 2]);
 	}
 	return INVALIDVAR;
 }
+inline void addpoints(crvec p1, crvec p2, VECLIST& e)
+{
+	int len = (p2 - p1).len()-1;
+	vec3 u = (p2 - p1); u.norm();
+	if(e.empty() || e.back().p != p1)
+		e.push_back(p1);
+	
+	for (int i = 1; i < len; i++)
+	{
+		e.push_back(p1 + u * i);
+	}
+	e.push_back(p2);
+}
+inline void face_2e_hole(PMHG::EDGE& e1, PMHG::EDGE& e2, PMHG::EDGE& hole)
+{
+	closeedge(hole.vlist);
+	int len = int(_MIN(e1.vlist.size(), e2.vlist.size())-1);
+	for (int i = 0; i < len; i++)
+	{
+		PMHG::EDGE ee;
+		addpoints(e1.vlist[i], e1.vlist[i + 1], ee.vlist);
+		addpoints(e1.vlist[i + 1], e2.vlist[i + 1], ee.vlist);
+		addpoints(e2.vlist[i + 1], e2.vlist[i], ee.vlist);
+		addpoints(e2.vlist[i], e1.vlist[i], ee.vlist);
+
+		if(ee.intersect(hole))
+		{
+			PMHG::EDGE eee;
+			{
+				eee = ee | (hole);
+				PMHG::gtable.push_back(eee);
+				facepoly(eee.vlist);
+			}
+			phaseedge(ee.vlist, ee.vlist.size() / 2);
+			{
+				eee = ee | (hole);
+				PMHG::gtable.push_back(eee);
+				facepoly(eee.vlist);
+			}
+		}
+		else
+		{
+			plane(e1.vlist[i], e1.vlist[i + 1], e2.vlist[i + 1], e2.vlist[i]);
+		}
+	}
+}
 static var face(PMHG::code& cd, int args)
 {
-	face(estack[estack.size() - 2], estack.back());
+	if (args == 3)
+	{
+		face_2e_hole(PHG_PARAM(1), PHG_PARAM(2), PHG_PARAM(3));
+	}
+	else if (args == 2)
+		face_noclose(PHG_PARAM(1).vlist, PHG_PARAM(2).vlist);
+	else if (args == 1)
+	{
+		facepoly(PHG_PARAM(1).vlist);
+	}
+	else if (args == 0)
+		face(estack[estack.size() - 2], estack.back());
 
 	return 0;
 }
-//------------------------------------------
-// init
+
 //------------------------------------------
 static void initphg()
 {
@@ -707,6 +911,13 @@ static void initphg()
 	PMHG::register_api("pop", pope);
 
 	PMHG::register_api("ext", extrudeedge);
+	PMHG::register_api("mov", moveedge);
+
+	PMHG::register_api("yaw", yawedge);
+	PMHG::register_api("pit", pitchedge);
+	PMHG::register_api("rol", rolledge);
+
+	PMHG::register_api("cent", getcenter);
 
 	PMHG::register_api("face", face);
 	PMHG::register_api("facepoly", facepoly);
@@ -715,7 +926,6 @@ static void initphg()
 //------------------------------------------
 // VB
 //------------------------------------------
-
 extern "C"
 {
 	 int EXPORT_API _stdcall VB_dopmhg(const char* script)
@@ -742,10 +952,10 @@ extern "C"
 	}
 }
 
-// ======================================================================
+// =============================================
 // test
-// ======================================================================
-void test111()
+// =============================================
+void test()
 {
 	{// zero element
 		PMHG::gtable.clear();
