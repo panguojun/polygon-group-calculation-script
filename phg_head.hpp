@@ -1,7 +1,7 @@
 #undef var
 #undef INVALIDVAR
 
-#define var			ELEMENT
+#define var		ELEMENT
 #define INVALIDVAR	ELEMENT(0)
 
 #undef PHGPRINT
