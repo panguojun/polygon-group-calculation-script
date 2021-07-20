@@ -228,8 +228,8 @@ static struct varmapstack_t
 	void addvar(const char* name, const var& v)
 	{
 		PRINT("addvar: " << name);// << " = " << v);
-		if(!gtable.empty())
-			add2table(v);
+		//if(!gtable.empty())
+		//	add2table(v);
 
 		if (stack.empty())
 			push();
@@ -538,9 +538,9 @@ static void finishtrunk(code& cd, int trunkcnt = 0, char sk = '{', char ek = '}'
 
 // -----------------------------------------------------------------------
 // 表达式 for example: x=a+b, v = fun(x), x > 2 || x < 5
-static var expr(code& cd, int args0 = 0)
+static var expr(code& cd, byte args0 = 0, byte rank0 = 0)
 {
-	//PRINT("expr(");
+	PRINT("expr(");
 	int args = args0;
 	while (!cd.eoc()) {
 		short type = get(cd);
@@ -550,14 +550,11 @@ static var expr(code& cd, int args0 = 0)
 		}
 		else if (type == OPR) {
 			opr o = cd.cur();
+
 			if (!cd.oprstack.empty() && cd.oprstack.cur() == '.')
 				cd.oprstack.setcur(o);
 			else
 				cd.oprstack.push(o);
-
-			//if (iscalc(cd.cur())) {
-				//args++;
-			//}
 
 			cd.next();
 
@@ -584,12 +581,24 @@ static var expr(code& cd, int args0 = 0)
 					if (rank[o] >= rank[no]) {
 						getval(cd, type);
 						args++;
+						if (rank0 >= rank[o])
+						{
+							//PRINT("+++++++++++ " << o);
+							return act(cd, args);
+						}
 						cd.valstack.push(act(cd, args));
+						args = 1;
 					}
 					else {
 						getval(cd, type);
-						cd.valstack.push(expr(cd, 1));
+						cd.valstack.push(expr(cd, 1, rank[no]));
 						args++;
+						//PRINT("---------- " << args);
+						if (args >= 2)
+						{
+							cd.valstack.push(act(cd, args));
+							args = 1;
+						}
 					}
 				}
 			}
@@ -615,14 +624,12 @@ static var expr(code& cd, int args0 = 0)
 				if (!cd.oprstack.empty() &&
 					(iscalc(cd.oprstack.cur()) || islogic(cd.oprstack.cur())))
 				{
-					//const var& ret = act(cd, args);
-					//PRINT(")");
-					return act(cd, args);
+					const var& ret = act(cd, args);PRINT(")");return ret;
+					//return act(cd, args);
 				}
 				else {
-					//const var& ret = cd.valstack.pop();
-					//PRINT(")");
-					return cd.valstack.pop();
+					const var& ret = cd.valstack.pop();PRINT(")"); return ret;
+					//return cd.valstack.pop();
 				}
 			}
 		}
