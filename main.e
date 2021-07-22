@@ -13,41 +13,38 @@
 		@15.{
 			push();
 			ang = ang * 0.7;
-			pit(ang);
+			rol(ang);
 			i = i + 1.;
 			ext(1.);
 			face();
 		}	
-		?(d < 2.){
-				push();
-				branch(d +1.);
-				pop();
-			}
+		?(d < 5.){
+			branch(d +1.);
+		}
 		pop(15.);
-		ang = -10.;
+		
+		ang = -20.;
 		@15.{
 			push();
 			ang = ang * 0.8;
 			pit(ang);
 			i = i + 1.;
 			ext(1.);
+			scl(0.95);
 			face();
 		}	
-		?(d < 5.){
-				push();
-				branch(d +1.);
-				pop();
-			}
+		?(d < 4.){
+			branch(d +1.);
+		}
 		pop(15.);
+	pop();	
 	$0.;	
 }
-
 
 e = 1,t=1;
 @7.{
 	e = e + t;
 	t = t * 2;
 }
-
 push(e);
 branch(1.);
