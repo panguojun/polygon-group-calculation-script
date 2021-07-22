@@ -1,6 +1,6 @@
 /****************************************************************************
-				Phg2.0
-			    脚本是群论的扩展
+							Phg2.0
+							脚本是群论的扩展
 语法示例:	
 
 'function					
@@ -128,10 +128,10 @@ inline bool isbrackets(char c) {
 // stacks define
 static struct codestack_t
 {
-	const char* buff[1024];
+	const char* buff[2048];
 	int top;
 	void push(const char* c) {
-		ASSERT(top + 1 < 1024);
+		ASSERT(top + 1 < 2048);
 		buff[++top] = c;
 	}
 	const char* pop() {
@@ -152,23 +152,23 @@ static struct codestack_t
 
 static struct valstack_t
 {
-	var buff[1024];
+	var buff[2048];
 	int top;
 	void push(const var& v) {
-		//PRINT("valstack PUSH ");
-		ASSERT(top + 1 < 1024);
+		//PRINT("valstack PUSH " << top);
+		ASSERT(top + 1 < 2048);
 		buff[++top] = v;
 	}
-	var pop() {
-		//PRINT("valstack POP");
+	var& pop() {
+		//PRINT("valstack POP " << top);
 		ASSERT(top > -1);
 		return buff[top--];
 	}
-	var cur() {
+	var& cur() {
 		ASSERT(top != -1);
 		return buff[top];
 	}
-	var get(int pos) {
+	var& get(int pos) {
 		ASSERT(top != -1);
 		ASSERT(top - pos >= 0);
 		return buff[top - pos];
@@ -184,13 +184,15 @@ static struct valstack_t
 
 static struct oprstack_t
 {
-	opr buff[1024];
+	opr buff[2048];
 	int top;
 	void push(opr c) {
-		ASSERT(top + 1 < 1024);
+		//PRINT("oprstack:PUSH " << c)
+		ASSERT(top + 1 < 2048);
 		buff[++top] = c;
 	}
 	opr pop() {
+	//	PRINT("oprstack:POP")
 		ASSERT(top > -1);
 		return buff[top--];
 	}
@@ -498,9 +500,9 @@ static void getval(code& cd, short type) {
 		
 	if (type == NUMBER) {
 		cd.valstack.push(chars2var(cd));
-		if (cd.oprstack.empty() || !(iscalc(cd.oprstack.cur()) || islogic(cd.oprstack.cur()))) {
+		/*if (cd.oprstack.empty() || !(iscalc(cd.oprstack.cur()) || islogic(cd.oprstack.cur()))) {
 			cd.oprstack.push('.');
-		}
+		}*/
 	}
 	else if (type == NAME) {
 		if (api_list.find(cd.getname()) != api_list.end() ||
@@ -511,9 +513,9 @@ static void getval(code& cd, short type) {
 			cd.valstack.push(gvarmapstack.getvar(cd.getname()));
 			cd.next3();
 		}
-		if (cd.oprstack.empty() || !(iscalc(cd.oprstack.cur()) || islogic(cd.oprstack.cur()))) {
-			cd.oprstack.push('.');
-		}
+		//if (cd.oprstack.empty() || !(iscalc(cd.oprstack.cur()) || islogic(cd.oprstack.cur()))) {
+		//	cd.oprstack.push('.');
+		//}
 	}
 }
 // finished trunk
@@ -604,9 +606,9 @@ static var expr(code& cd, byte args0 = 0, byte rank0 = 0)
 			}
 		}
 		else if (type == LGOPR) {
-			if (cd.oprstack.cur() == '.')
-				cd.oprstack.setcur(cd.cur());
-			else
+			//if (cd.oprstack.cur() == '.')
+			//	cd.oprstack.setcur(cd.cur());
+			//else
 				cd.oprstack.push(cd.cur());
 			cd.next();
 		}
@@ -898,7 +900,10 @@ static var callfunc(code& cd) {
 				apifun.args++;
 			}
 		}
-		return apifun.fun(cd, apifun.args);
+		var ret = apifun.fun(cd, apifun.args);
+		for (int i = 0; i < apifun.args; i++)
+			cd.valstack.pop();
+		return ret;
 	}
 	else
 		return callfunc_phg(cd);
