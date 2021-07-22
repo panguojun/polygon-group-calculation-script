@@ -540,7 +540,7 @@ static void finishtrunk(code& cd, int trunkcnt = 0, char sk = '{', char ek = '}'
 // 表达式 for example: x=a+b, v = fun(x), x > 2 || x < 5
 static var expr(code& cd, byte args0 = 0, byte rank0 = 0)
 {
-	PRINT("expr(");
+	//PRINT("expr(");
 	int args = args0;
 	while (!cd.eoc()) {
 		short type = get(cd);
@@ -624,12 +624,12 @@ static var expr(code& cd, byte args0 = 0, byte rank0 = 0)
 				if (!cd.oprstack.empty() &&
 					(iscalc(cd.oprstack.cur()) || islogic(cd.oprstack.cur())))
 				{
-					const var& ret = act(cd, args);PRINT(")");return ret;
-					//return act(cd, args);
+					//const var& ret = act(cd, args);PRINT(")");return ret;
+					return act(cd, args);
 				}
 				else {
-					const var& ret = cd.valstack.pop();PRINT(")"); return ret;
-					//return cd.valstack.pop();
+					//const var& ret = cd.valstack.pop();PRINT(")"); return ret;
+					return cd.valstack.pop();
 				}
 			}
 		}
