@@ -285,11 +285,22 @@ namespace PMHG
 				
 					e.vlist.push_back(vlist[i]);
 			}
+			else if (type == REAL && v.type == REAL)
+			{
+				e.type = REAL;
+				PRINT("/ REAL REAL");
+				e.fval = fval / v.fval;
+			}
 			else
 			{
 				ERRORMSG("/ ERROR");
 			}
 			return e;
+		}
+		inline bool issame(const vector3& v1, const vector3& v2) const
+		{
+			const real c_EPSINON = 1e-2;
+			return (fabs(v1.x - v2.x) <= c_EPSINON && fabs(v1.y - v2.y) <= c_EPSINON && fabs(v1.z - v2.z) <= c_EPSINON);
 		}
 		inline void _merge(VECLIST& out, const VECLIST& e1, int pos1, const VECLIST& e2, int pos2) const
 		{
@@ -299,7 +310,7 @@ namespace PMHG
 				{
 					PRINT(e1.size() << " pos1=" << pos1 <<";" << e2.size() << ",j=" << j);
 					
-					if (e1[pos1].p == e2[j].p)
+					if (issame(e1[pos1].p, e2[j].p))
 					{
 						PRINT("merg2e " << pos1 << "," << j);
 						
@@ -680,7 +691,9 @@ static var pope(PMHG::code& cd, int args)
 
 	int n = 1;
 	if (args == 1)
+	{
 		n = PHG_PARAM(1).fval;
+	}
 	for (int i = 0; i < n; i++)
 		estack.pop_back();
 
@@ -729,7 +742,8 @@ static var moveedge(PMHG::code& cd, int args)
 		float x = PHG_PARAM(2).fval;
 		float y = PHG_PARAM(3).fval;
 		float z = PHG_PARAM(4).fval;
-
+		PRINTV(x);
+		PRINTV(z);
 		for (int i = 0; i < e.vlist.size(); i++)
 		{
 			e.vlist[i] = (e.vlist[i] + vec3(x, y, z));
@@ -750,7 +764,15 @@ static var moveedge(PMHG::code& cd, int args)
 	}
 	return INVALIDVAR;
 }
-
+static var scaleedge(PMHG::code& cd, int args)
+{
+	ASSERT (args == 1)
+	
+	float s = PHG_PARAM(1).fval;
+	scaleedge(estack.back(), s);
+	
+	return INVALIDVAR;
+}
 static var yawedge(PMHG::code& cd, int args)
 {
 	float ang = PHG_PARAM(1).fval * PI / 180.0f;
@@ -958,6 +980,7 @@ static void initphg()
 
 	PMHG::register_api("ext", extrudeedge);
 	PMHG::register_api("mov", moveedge);
+	PMHG::register_api("scl", scaleedge);
 
 	PMHG::register_api("yaw", yawedge);
 	PMHG::register_api("pit", pitchedge);
@@ -979,7 +1002,19 @@ extern "C"
 		std::string str(script);
 		PRINTV(str);
 
-		PMHG::dostring(str.c_str());
+		if (str.find(".e") != std::string::npos)
+		{
+			if(PMHG::table == 0)
+			{
+				PMHG::setup();
+				renderstate = 0;
+			}
+			resetsm();
+			estack.clear();
+			PMHG::dofile(str.c_str());
+		}
+		else
+			PMHG::dostring(str.c_str());
 		return 0;
 	}
 	EXPORT_API float _stdcall VB_curval()
