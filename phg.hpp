@@ -1,6 +1,6 @@
 /****************************************************************************
-				Phg2.0
-				脚本是群论的扩展
+							Phg2.0
+							脚本是群论的扩展
 语法示例:	
 
 'function					
@@ -540,7 +540,7 @@ static void finishtrunk(code& cd, int trunkcnt = 0, char sk = '{', char ek = '}'
 
 // -----------------------------------------------------------------------
 // 表达式 for example: x=a+b, v = fun(x), x > 2 || x < 5
-static var expr(code& cd, byte args0 = 0, byte rank0 = 0)
+static var expr(code& cd, byte args0 = 0)
 {
 	PRINT("expr( ");
 	int args = args0;
@@ -597,7 +597,8 @@ static var expr(code& cd, byte args0 = 0, byte rank0 = 0)
 					}
 					else {
 						getval(cd, type);
-						cd.valstack.push(expr(cd, 1, rank[o]));
+
+						cd.valstack.push(expr(cd, 1));
 						args++;
 						continue;
 					}
