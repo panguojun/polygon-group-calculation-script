@@ -1,6 +1,6 @@
 /****************************************************************************
-				Phg2.0
-				脚本是群论的扩展
+							Phg2.0
+							脚本是群论的扩展
 语法示例:	
 
 'function					
@@ -192,7 +192,7 @@ static struct oprstack_t
 		buff[++top] = c;
 	}
 	opr pop() {
-	//	PRINT("oprstack:POP")
+		//PRINT("oprstack:POP")
 		ASSERT(top > -1);
 		return buff[top--];
 	}
@@ -544,6 +544,7 @@ static var expr(code& cd, byte args0 = 0, byte rank0 = 0)
 {
 	//PRINT("expr(");
 	int args = args0;
+	int oprs = 0;
 	while (!cd.eoc()) {
 		short type = get(cd);
 		if (type == NAME || type == NUMBER) {
@@ -552,11 +553,14 @@ static var expr(code& cd, byte args0 = 0, byte rank0 = 0)
 		}
 		else if (type == OPR) {
 			opr o = cd.cur();
-
+			
 			if (!cd.oprstack.empty() && cd.oprstack.cur() == '.')
 				cd.oprstack.setcur(o);
 			else
+			{
 				cd.oprstack.push(o);
+				oprs++;
+			}
 
 			cd.next();
 
@@ -609,7 +613,10 @@ static var expr(code& cd, byte args0 = 0, byte rank0 = 0)
 			//if (cd.oprstack.cur() == '.')
 			//	cd.oprstack.setcur(cd.cur());
 			//else
+			{
 				cd.oprstack.push(cd.cur());
+				oprs++;
+			}
 			cd.next();
 		}
 		else {
@@ -619,14 +626,17 @@ static var expr(code& cd, byte args0 = 0, byte rank0 = 0)
 				var v = expr(cd);
 				cd.next();
 				cd.valstack.push(v);
+				
 				args++;
 			}
 			else if (c == ')' || c == ']' || c == ';' || c == ',' || c == '{' || c == '\n' || c == '\r') {
 
 				if (!cd.oprstack.empty() &&
-					(iscalc(cd.oprstack.cur()) || islogic(cd.oprstack.cur())))
+					(iscalc(cd.oprstack.cur()) || islogic(cd.oprstack.cur())) &&
+					oprs > 0)
 				{
 					//const var& ret = act(cd, args);PRINT(")");return ret;
+					//PRINTV(oprs);
 					return act(cd, args);
 				}
 				else {
