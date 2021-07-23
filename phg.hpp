@@ -542,11 +542,13 @@ static void finishtrunk(code& cd, int trunkcnt = 0, char sk = '{', char ek = '}'
 // 表达式 for example: x=a+b, v = fun(x), x > 2 || x < 5
 static var expr(code& cd, byte args0 = 0, byte rank0 = 0)
 {
-	//PRINT("expr(");
+	PRINT("expr( ");
 	int args = args0;
 	int oprs = 0;
 	while (!cd.eoc()) {
 		short type = get(cd);
+		//PRINT(cd.cur());
+
 		if (type == NAME || type == NUMBER) {
 			getval(cd, type);
 			args++;
@@ -563,6 +565,8 @@ static var expr(code& cd, byte args0 = 0, byte rank0 = 0)
 			}
 
 			cd.next();
+
+			//PRINT(cd.cur());
 
 			if (iscalc(cd.cur())) {
 				cd.valstack.push(expr(cd));
@@ -583,28 +587,19 @@ static var expr(code& cd, byte args0 = 0, byte rank0 = 0)
 						cd.next();
 
 					type = get(cd);
-
 					if (rank[o] >= rank[no]) {
 						getval(cd, type);
 						args++;
-						if (rank0 >= rank[o])
-						{
-							//PRINT("+++++++++++ " << o);
-							return act(cd, args);
-						}
+
 						cd.valstack.push(act(cd, args));
 						args = 1;
+						
 					}
 					else {
 						getval(cd, type);
-						cd.valstack.push(expr(cd, 1, rank[no]));
+						cd.valstack.push(expr(cd, 1, rank[o]));
 						args++;
-						//PRINT("---------- " << args);
-						if (args >= 2)
-						{
-							cd.valstack.push(act(cd, args));
-							args = 1;
-						}
+						continue;
 					}
 				}
 			}
@@ -635,13 +630,13 @@ static var expr(code& cd, byte args0 = 0, byte rank0 = 0)
 					(iscalc(cd.oprstack.cur()) || islogic(cd.oprstack.cur())) &&
 					oprs > 0)
 				{
-					//const var& ret = act(cd, args);PRINT(")");return ret;
+					var ret = act(cd, args);PRINT(")");return ret;
 					//PRINTV(oprs);
-					return act(cd, args);
+					//return act(cd, args);
 				}
 				else {
-					//const var& ret = cd.valstack.pop();PRINT(")"); return ret;
-					return cd.valstack.pop();
+					var ret = cd.valstack.pop();PRINT(")"); return ret;
+					//return cd.valstack.pop();
 				}
 			}
 		}
