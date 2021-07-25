@@ -32,7 +32,6 @@ yy = yy + 1;
 > yy;
 
 ****************************************************************************/
-
 //#define PHG_VAR(name, defaultval) (PHG::gcode.varmapstack.stack.empty() || PHG::gcode.varmapstack.stack.front().find(#name) == PHG::gcode.varmapstack.stack.front().end() ? defaultval : PHG::gcode.varmapstack.stack.front()[#name])
 //#define PHG_PARAM(index)	cd.valstack.get(args - index)
 
@@ -99,7 +98,7 @@ std::map<string, api_fun_t> api_list;
 
 void(*table)(code& cd);
 
-// 运算
+// calculation
 var(*act)(code& cd, int args);
 	
 // -----------------------------------------------------------------------
@@ -125,7 +124,7 @@ inline bool isbrackets(char c) {
 	return c == '(';
 }
 
-// stacks define
+// definition of stacks
 static struct codestack_t
 {
 	const char* buff[2048];
@@ -261,9 +260,7 @@ static struct varmapstack_t
 	}
 } gvarmapstack;
 
-// -----------------------------------------------------------------------
 // code
-
 static struct code
 {
 	const char* ptr;
@@ -352,7 +349,6 @@ static struct code
 	}
 };
 	
-// get char
 static short get(code& cd)
 {
 	for (; !cd.eoc(); cd.next()) {
@@ -393,8 +389,9 @@ static short gettype(char c)
 	else
 		return c;
 }
+
 /*
-// 运算
+// default calculation
 static var act_default(code& cd, int args)
 {
 	opr o = cd.oprstack.pop();
@@ -518,6 +515,7 @@ static void getval(code& cd, short type) {
 		//}
 	}
 }
+
 // finished trunk
 static void finishtrunk(code& cd, int trunkcnt = 0, char sk = '{', char ek = '}')
 {
@@ -650,6 +648,7 @@ static var expr(code& cd, byte args0 = 0, int rank0 = 0)
 	ERRORMSG("';' is missing?");
 	return INVALIDVAR;
 }
+
 // single var
 static void singvar(code& cd) {
 	string name = cd.getname();
@@ -809,7 +808,7 @@ static int subtrunk(code& cd, var& ret)
 	return 0;
 }
 	
-// 函数
+// 函数 function
 static var callfunc_phg(code& cd) {
 	funcname fnm = cd.getname();
 	PRINT("callfunc: " << fnm << "()");
@@ -920,7 +919,6 @@ static var callfunc(code& cd) {
 		return callfunc_phg(cd);
 }
 
-// func
 static void func(code& cd) {
 	funcname fnm = cd.getname();
 	PRINT("define func: " << fnm);
