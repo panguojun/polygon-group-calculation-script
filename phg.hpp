@@ -1,4 +1,4 @@
-/****************************************************************************
+/************************************************************************
 				Phg2.0
 				脚本是群论的扩展
 语法示例:	
@@ -31,10 +31,7 @@ yy = yy + 1;
 }
 > yy;
 
-****************************************************************************/
-//#define PHG_VAR(name, defaultval) (PHG::gcode.varmapstack.stack.empty() || PHG::gcode.varmapstack.stack.front().find(#name) == PHG::gcode.varmapstack.stack.front().end() ? defaultval : PHG::gcode.varmapstack.stack.front()[#name])
-//#define PHG_PARAM(index)	cd.valstack.get(args - index)
-
+************************************************************************/
 //#define var			real
 //#define INVALIDVAR	(0)
 
