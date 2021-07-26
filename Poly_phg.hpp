@@ -670,7 +670,6 @@ static var pushe(PMHG::code& cd, int args)
 		if (PHG_PARAM(1).vlist.size() > 0)
 		{
 			estack.push_back(PHG_PARAM(1).vlist);
-			closeedge(estack.back());
 		}
 	}
 	else
@@ -682,6 +681,11 @@ static var pushe(PMHG::code& cd, int args)
 			estack.push_back(estack.back());
 		}
 	}
+	return 0;
+}
+static var closeedge(PMHG::code& cd, int args)
+{
+	closeedge(estack.back());
 	return 0;
 }
 static var pope(PMHG::code& cd, int args)
@@ -697,6 +701,20 @@ static var pope(PMHG::code& cd, int args)
 	for (int i = 0; i < n; i++)
 		estack.pop_back();
 
+	return 0;
+}
+static var pushcoord(PMHG::code& cd, int args)
+{
+	coordstack.push_back(coordstack.back());
+	return 0;
+}
+static var popcoord(PMHG::code& cd, int args)
+{
+	int n = 1;
+	if (args == 1)
+		n = PHG_PARAM(1).fval;
+	for (int i = 0; i < n; i++)
+		coordstack.pop_back();
 	return 0;
 }
 static var extrudeedge(PMHG::code& cd, int args)
@@ -820,6 +838,25 @@ static var rolledge(PMHG::code& cd, int args)
 		coordstack.push_back(coord_t(estack.back()));
 	coordstack.back().uy.rot(ang, uz);
 	coordstack.back().ux.rot(ang, uz);
+	return 0;
+}
+static var smoothedge(PMHG::code& cd, int args)
+{
+	float power = PHG_PARAM(1).fval;
+	VECLIST& e = estack.back();
+	VECLIST ee;
+	doublevnum(e, ee, isedgeclosed(e) ? e.size() : e.size() - 1);
+	vec3 o = getedgecenter(e);
+	for (int i = 1; i < e.size(); i++)
+	{
+		crvec p1 = e[i-1].p;
+		crvec p2 = e[i].p;
+		vec3 p = (p1 + p2) / 2.;
+		p = o + (p - o).normcopy() * (((p1 - o).len() + (p2 - o).len()) / 2.0);
+		ee[(i * 2 - 1) % ee.size()].p = p;
+	}
+	
+	e = ee;
 	return 0;
 }
 static var getcenter(PMHG::code& cd, int args)
@@ -976,11 +1013,16 @@ static void initphg()
 	reset();
 
 	PMHG::register_api("push", pushe);
+	PMHG::register_api("cls", closeedge);
 	PMHG::register_api("pop", pope);
+	PMHG::register_api("pushc", pushcoord);
+	PMHG::register_api("popc", popcoord);
 
 	PMHG::register_api("ext", extrudeedge);
 	PMHG::register_api("mov", moveedge);
 	PMHG::register_api("scl", scaleedge);
+
+	PMHG::register_api("smooth", smoothedge);
 
 	PMHG::register_api("yaw", yawedge);
 	PMHG::register_api("pit", pitchedge);
