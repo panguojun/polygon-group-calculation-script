@@ -4,6 +4,7 @@
 // **************************************************************************
 #define GROUP		PMHG
 #define ELEMENT		PMHG::EDGE
+//#define WANGGE_DUIQI
 
 extern void initphg();
 
@@ -102,7 +103,8 @@ namespace PMHG
 				vec3 lastp = vec3::ZERO;
 				for (auto it : v.vlist)
 				{
-					vec3 np = e.vlist.back().p + (it.p - lastp);
+					vec3 dp = (it.p - lastp);
+					vec3 np = e.vlist.back().p + dp;
 					lastp = it.p;
 
 					bool bloop = false;
@@ -659,9 +661,9 @@ namespace PMHG
 }
 
 // ------------------------------------------
-// api
+// API
 // ------------------------------------------
-static var pushe(PMHG::code& cd, int args)
+static var pushe0(PMHG::code& cd, int args)
 {
 	//PRINTV(PHG_PARAM(1).vlist.size());
 	if (args == 1)
@@ -678,6 +680,57 @@ static var pushe(PMHG::code& cd, int args)
 		else
 		{
 			estack.push_back(estack.back());
+		}
+	}
+	return 0;
+}
+static var pushe(PMHG::code& cd, int args)
+{
+	if (args == 1)
+	{
+		if (PHG_PARAM(1).vlist.size() > 0)
+		{
+			VECLIST& e = PHG_PARAM(1).vlist;
+			if (!coordstack.empty())
+			{
+				const coord_t& crd = coordstack.back();
+				for (auto& it : e)
+				{
+					it.p = crd.o + crd.ux * it.p.x + crd.uy * it.p.y + crd.uz * it.p.z;
+				}
+			}
+			estack.push_back(e);
+		}
+	}
+	else
+	{
+		if (estack.empty())
+			estack.push_back(VECLIST());
+		else
+		{
+			estack.push_back(estack.back());
+		}
+	}
+	return 0;
+}
+static var adde(PMHG::code& cd, int args)
+{
+	if (args == 1)
+	{
+		if (PHG_PARAM(1).vlist.size() > 0)
+		{
+			VECLIST& e = PHG_PARAM(1).vlist;
+			if (!coordstack.empty())
+			{
+				const coord_t& crd = coordstack.back();
+				for (auto& it : e)
+				{
+					it.p = crd.o + crd.ux * it.p.x + crd.uy * it.p.y + crd.uz * it.p.z;
+				}
+			}
+			PMHG::EDGE ed1(e);
+			PMHG::EDGE ed2(estack.back());
+			estack.push_back((ed1 + ed2).vlist);
 		}
 	}
 	return 0;
@@ -704,7 +757,15 @@ static var pope(PMHG::code& cd, int args)
 }
 static var pushcoord(PMHG::code& cd, int args)
 {
-	coordstack.push_back(coordstack.back());
+	if (estack.empty() && coordstack.empty())
+	{
+		coordstack.push_back(coord_t(vec::UX, vec::UY, vec::UZ));
+		return 0;
+	}
+	if (coordstack.empty())
+		coordstack.push_back(coord_t(estack.back()));
+	else
+		coordstack.push_back(coordstack.back());
 	return 0;
 }
 static var popcoord(PMHG::code& cd, int args)
@@ -732,6 +793,7 @@ static var extrudeedge(PMHG::code& cd, int args)
 				e1[i].ind = -1;
 			}
 		}
+		coordstack.back().o += dv;
 	}
 	else if (args == 2)
 	{
@@ -773,11 +835,13 @@ static var moveedge(PMHG::code& cd, int args)
 		float y = PHG_PARAM(2).fval;
 		float z = PHG_PARAM(3).fval;
 
+		vec3 v(x, y, z);
 		VECLIST& e = estack.back();
 		for (int i = 0; i < e.size(); i++)
 		{
-			e[i] = (e[i] + vec3(x, y, z));
+			e[i] = e[i] + v;
 		}
+		coordstack.back().o += v;
 	}
 	return INVALIDVAR;
 }
@@ -794,9 +858,10 @@ static var yawedge(PMHG::code& cd, int args)
 {
 	float ang = PHG_PARAM(1).fval * PI / 180.0f;
 	vec enorm = getedgenorm2(estack.back());
-	rotedge(estack.back(), ang, enorm);
-	if(coordstack.empty())
-		coordstack.push_back(coord_t(estack.back()));
+	vec o = getedgecenter(estack.back());
+	rotedge(estack.back(), ang, o, enorm);
+
+	coordstack.back().o = o;
 	coordstack.back().ux.rot(ang, enorm);
 	coordstack.back().uz.rot(ang, enorm);
 	return 0;
@@ -807,21 +872,10 @@ static var pitchedge(PMHG::code& cd, int args)
 	VECLIST& e = estack.back();
 	vec ux, uy, uz;
 	edgeax2(e, ux, uy, uz);
-	if (weightlist.size() == e.size())
-	{
-		VECLIST oe;
-		rotedge(e, ang, ux, oe);
-		for (int i = 0; i < e.size(); i++)
-		{
-			e[i].p = blend(e[i].p, oe[i].p, weightlist[i]);
-		}
-	}
-	else
-	{
-		rotedge(e, ang, ux);
-	}
-	if (coordstack.empty())
-		coordstack.push_back(coord_t(estack.back()));
+	vec o = getedgecenter(e);
+	rotedge(e, ang, o, ux);
+	
+	coordstack.back().o = o;
 	coordstack.back().uy.rot(ang, ux);
 	coordstack.back().uz.rot(ang, ux);
 	return 0;
@@ -832,16 +886,16 @@ static var rolledge(PMHG::code& cd, int args)
 	VECLIST& e = estack.back();
 	vec ux, uy, uz;
 	edgeax2(e, ux, uy, uz);
-	rotedge(e, ang, uz);
-	if (coordstack.empty())
-		coordstack.push_back(coord_t(estack.back()));
+	vec o = getedgecenter(e);
+	rotedge(e, ang, o, uz);
+
+	coordstack.back().o = o;
 	coordstack.back().uy.rot(ang, uz);
 	coordstack.back().ux.rot(ang, uz);
 	return 0;
 }
 static var smoothedge(PMHG::code& cd, int args)
 {
-	float power = PHG_PARAM(1).fval;
 	VECLIST& e = estack.back();
 	VECLIST ee;
 	doublevnum(e, ee, isedgeclosed(e) ? e.size() : e.size() - 1);
@@ -857,16 +911,6 @@ static var smoothedge(PMHG::code& cd, int args)
 	
 	e = ee;
 	return 0;
-}
-static var getcenter(PMHG::code& cd, int args)
-{
-	ASSERT(args == 1);
-	vec o = getedgecenter(PHG_PARAM(1).vlist);
-	PMHG::EDGE e;
-	e.type = PMHG::EDGE::QUAT;
-	e.q = quaternion(o.x, o.y, o.z, 0);
-
-	return e;
 }
 inline var facepoly(VECLIST& e, vec3 ux = vec::UX)
 {
@@ -1003,7 +1047,20 @@ static var face(PMHG::code& cd, int args)
 
 	return 0;
 }
-
+static var curedge(PMHG::code& cd, int args)
+{
+	ASSERT(!estack.empty());
+	
+	return PMHG::EDGE(estack.back());
+}
+static var rgb(PMHG::code& cd, int args)
+{
+	int r = PHG_PARAM(1).fval;
+	int g = PHG_PARAM(2).fval;
+	int b = PHG_PARAM(3).fval;
+	color = RGB(r, g, b);
+	return 0;
+}
 //------------------------------------------
 static void initphg()
 {
@@ -1011,7 +1068,14 @@ static void initphg()
 	
 	reset();
 
+	PMHG::register_api("rgb", rgb);
+	PMHG::register_api("cur", curedge);
+
+	// logic on stack
+
+	PMHG::register_api("push0", pushe0);
 	PMHG::register_api("push", pushe);
+	PMHG::register_api("add", adde);
 	PMHG::register_api("cls", closeedge);
 	PMHG::register_api("pop", pope);
 	PMHG::register_api("pushc", pushcoord);
@@ -1026,8 +1090,6 @@ static void initphg()
 	PMHG::register_api("yaw", yawedge);
 	PMHG::register_api("pit", pitchedge);
 	PMHG::register_api("rol", rolledge);
-
-	PMHG::register_api("cent", getcenter);
 
 	PMHG::register_api("face", face);
 	PMHG::register_api("facepoly", facepoly);
