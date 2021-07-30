@@ -1,6 +1,6 @@
-/************************************************************************
-				Phg2.0
-				脚本是群论的扩展
+/****************************************************************************
+							Phg2.0
+							脚本是群论的扩展
 语法示例:	
 
 'function					
@@ -31,7 +31,11 @@ yy = yy + 1;
 }
 > yy;
 
-************************************************************************/
+****************************************************************************/
+
+//#define PHG_VAR(name, defaultval) (PHG::gcode.varmapstack.stack.empty() || PHG::gcode.varmapstack.stack.front().find(#name) == PHG::gcode.varmapstack.stack.front().end() ? defaultval : PHG::gcode.varmapstack.stack.front()[#name])
+//#define PHG_PARAM(index)	cd.valstack.get(args - index)
+
 //#define var			real
 //#define INVALIDVAR	(0)
 
@@ -95,7 +99,7 @@ std::map<string, api_fun_t> api_list;
 
 void(*table)(code& cd);
 
-// calculation
+// 运算
 var(*act)(code& cd, int args);
 	
 // -----------------------------------------------------------------------
@@ -121,7 +125,7 @@ inline bool isbrackets(char c) {
 	return c == '(';
 }
 
-// definition of stacks
+// stacks define
 static struct codestack_t
 {
 	const char* buff[2048];
@@ -257,7 +261,9 @@ static struct varmapstack_t
 	}
 } gvarmapstack;
 
+// -----------------------------------------------------------------------
 // code
+
 static struct code
 {
 	const char* ptr;
@@ -346,6 +352,7 @@ static struct code
 	}
 };
 	
+// get char
 static short get(code& cd)
 {
 	for (; !cd.eoc(); cd.next()) {
@@ -386,9 +393,8 @@ static short gettype(char c)
 	else
 		return c;
 }
-
 /*
-// default calculation
+// 运算
 static var act_default(code& cd, int args)
 {
 	opr o = cd.oprstack.pop();
@@ -512,7 +518,6 @@ static void getval(code& cd, short type) {
 		//}
 	}
 }
-
 // finished trunk
 static void finishtrunk(code& cd, int trunkcnt = 0, char sk = '{', char ek = '}')
 {
@@ -645,7 +650,6 @@ static var expr(code& cd, byte args0 = 0, int rank0 = 0)
 	ERRORMSG("';' is missing?");
 	return INVALIDVAR;
 }
-
 // single var
 static void singvar(code& cd) {
 	string name = cd.getname();
@@ -805,7 +809,7 @@ static int subtrunk(code& cd, var& ret)
 	return 0;
 }
 	
-// 函数 function
+// 函数
 static var callfunc_phg(code& cd) {
 	funcname fnm = cd.getname();
 	PRINT("callfunc: " << fnm << "()");
@@ -886,7 +890,7 @@ static var callfunc(code& cd) {
 		api_fun_t& apifun = api_list[fnm];
 		apifun.args = 0;
 
-		ASSERT(cd.next2() == '(');
+		ASSERT(cd.next3() == '(');
 
 		cd.next();
 		while (!cd.eoc()) {
@@ -916,6 +920,7 @@ static var callfunc(code& cd) {
 		return callfunc_phg(cd);
 }
 
+// func
 static void func(code& cd) {
 	funcname fnm = cd.getname();
 	PRINT("define func: " << fnm);
@@ -942,7 +947,7 @@ static void parser_default(code& cd) {
 
 	//getchar();
 
-	PRINTV(gvarmapstack.stack.size());
+	//(gvarmapstack.stack.size());
 	gvarmapstack.push();
 
 	while (!cd.eoc()) {
