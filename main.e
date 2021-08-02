@@ -1,50 +1,61 @@
+[0.707,0,0.707];
 [1,0,0];
 [0,1,0,45];
-[0,3,0,0];
-[0,1,0,-45];
-[0,1,0,5];
+[0,1,0, 15];
+[0,1,0, 90];
+[0,1,0, 135];
 
 #branch(d){
+	pushc();
 	push();
 		ext(5.);
 		face();
 		
-		ang = 10.;
-		@15.{
+		pushc();
+		ang = 20.;
+		@5.{
 			push();
-			ang = ang * 0.7;
-			rol(ang);
-			i = i + 1.;
+			ang = ang * 0.7 - 10.;
+			pit(ang);
+			scl(0.95);
 			ext(1.);
 			face();
-		}	
-		?(d < 5.){
-			branch(d +1.);
 		}
-		pop(15.);
 		
+		?(d < 3.){
+			branch(d + 1.);
+		}
+		pop(5.);
+		popc();
+		
+		pushc();
 		ang = -20.;
-		@15.{
+		@5.{
 			push();
-			ang = ang * 0.8;
+			ang = ang * 0.8 + 10.;
 			pit(ang);
-			i = i + 1.;
 			ext(1.);
 			scl(0.95);
 			face();
 		}	
 		?(d < 4.){
-			branch(d +1.);
+			branch(d + 1.);
 		}
-		pop(15.);
+		pop(5.);
+		popc();
+		
 	pop();	
+	popc();
 	$0.;	
 }
 
-e = 1,t=1;
-@7.{
-	e = e + t;
-	t = t * 2;
+rgb(200.,200.,200.);
+
+t = 1,e=1;
+@8.{
+e = e + t;
+t = t * 3;
 }
-push(e);
-branch(1.);
+
+>calign(e);
+branch(0.);
