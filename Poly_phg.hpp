@@ -696,7 +696,7 @@ static var pushe(PMHG::code& cd, int args)
 				const coord_t& crd = coordstack.back();
 				for (auto& it : e)
 				{
-					it.p = crd.o + crd.ux * it.p.x + crd.uy * it.p.y + crd.uz * it.p.z;
+					it.p = crd.o + crd.ux * (it.p.x * crd.scl) + crd.uy * (it.p.y * crd.scl) + crd.uz * (it.p.z * crd.scl);
 				}
 			}
 			estack.push_back(e);
@@ -725,7 +725,7 @@ static var adde(PMHG::code& cd, int args)
 				const coord_t& crd = coordstack.back();
 				for (auto& it : e)
 				{
-					it.p = crd.o + crd.ux * it.p.x + crd.uy * it.p.y + crd.uz * it.p.z;
+					it.p = crd.o + crd.ux * (it.p.x * crd.scl) + crd.uy * (it.p.y * crd.scl) + crd.uz * (it.p.z * crd.scl);
 				}
 			}
 			PMHG::EDGE ed1(e);
@@ -845,25 +845,34 @@ static var moveedge(PMHG::code& cd, int args)
 	}
 	return INVALIDVAR;
 }
+static void scaleedge(VECLIST& e1, real scale, crvec o)
+{
+	for (int i = 0; i < e1.size(); i++)
+	{
+		vertex& v = e1[i];
+		v.ind = -1;
+		v.p = ((v.p - o) * scale + o);
+	}
+}
 static var scaleedge(PMHG::code& cd, int args)
 {
 	ASSERT (args == 1)
 	
 	float s = PHG_PARAM(1).fval;
-	scaleedge(estack.back(), s);
-	
+	scaleedge(estack.back(), s, coordstack.back().o);
+	coordstack.back().scl *= s;
 	return INVALIDVAR;
 }
 static var yawedge(PMHG::code& cd, int args)
 {
 	float ang = PHG_PARAM(1).fval * PI / 180.0f;
 	vec enorm = getedgenorm2(estack.back());
-	vec o = getedgecenter(estack.back());
-	rotedge(estack.back(), ang, o, enorm);
+	coord_t& cb = coordstack.back();
+	rotedge(estack.back(), ang, cb.o, enorm);
 
-	coordstack.back().o = o;
-	coordstack.back().ux.rot(ang, enorm);
-	coordstack.back().uz.rot(ang, enorm);
+	cb.ux.rot(ang, enorm);
+	cb.uz.rot(ang, enorm);
+	cb.uy = cb.ux.cross(cb.uz).normcopy();
 	return 0;
 }
 static var pitchedge(PMHG::code& cd, int args)
@@ -872,12 +881,12 @@ static var pitchedge(PMHG::code& cd, int args)
 	VECLIST& e = estack.back();
 	vec ux, uy, uz;
 	edgeax2(e, ux, uy, uz);
-	vec o = getedgecenter(e);
-	rotedge(e, ang, o, ux);
+	coord_t& cb = coordstack.back();
+	rotedge(e, ang, cb.o, ux);
 	
-	coordstack.back().o = o;
-	coordstack.back().uy.rot(ang, ux);
-	coordstack.back().uz.rot(ang, ux);
+	cb.uy.rot(ang, ux);
+	cb.uz.rot(ang, ux);
+	cb.ux = cb.uz.cross(cb.uy).normcopy();
 	return 0;
 }
 static var rolledge(PMHG::code& cd, int args)
@@ -886,12 +895,12 @@ static var rolledge(PMHG::code& cd, int args)
 	VECLIST& e = estack.back();
 	vec ux, uy, uz;
 	edgeax2(e, ux, uy, uz);
-	vec o = getedgecenter(e);
-	rotedge(e, ang, o, uz);
+	coord_t& cb = coordstack.back();
+	rotedge(e, ang, cb.o, uz);
 
-	coordstack.back().o = o;
-	coordstack.back().uy.rot(ang, uz);
-	coordstack.back().ux.rot(ang, uz);
+	cb.uy.rot(ang, uz);
+	cb.ux.rot(ang, uz);
+	cb.uz = cb.uy.cross(cb.ux).normcopy();
 	return 0;
 }
 static var smoothedge(PMHG::code& cd, int args)
@@ -1061,6 +1070,17 @@ static var rgb(PMHG::code& cd, int args)
 	color = RGB(r, g, b);
 	return 0;
 }
+static var centalign(PMHG::code& cd, int args)
+{
+	VECLIST& e = PHG_PARAM(1).vlist;
+	vec o = getedgecenter(e);
+	for (auto& it : e)
+	{
+		it.p -= o;
+	}
+	return e;
+}
+
 //------------------------------------------
 static void initphg()
 {
@@ -1070,6 +1090,7 @@ static void initphg()
 
 	PMHG::register_api("rgb", rgb);
 	PMHG::register_api("cur", curedge);
+	PMHG::register_api("calign", centalign);
 
 	// logic on stack
 
