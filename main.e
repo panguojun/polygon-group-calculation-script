@@ -49,6 +49,28 @@
 	$0.;	
 }
 
+'shell 
+#shell()
+{
+	pushc();
+	ang = 1.;
+	d = 1.;
+	push();
+		@25.{
+			push();
+			ang = ang * 1.1;
+			d = d * 0.5;
+			pit(ang);
+			ext(0.1 * d);
+			mov(0.1,0.,0.);
+			scl(0.95);
+			face();
+		}	
+	pop();
+	popc();
+	$0.;
+}
+
 rgb(200.,200.,200.);
 
 t = 1,e=1;
