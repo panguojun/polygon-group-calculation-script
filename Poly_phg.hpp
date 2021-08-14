@@ -4,7 +4,6 @@
 // **************************************************************************
 #define GROUP		PMHG
 #define ELEMENT		PMHG::EDGE
-//#define WANGGE_DUIQI
 
 extern void initphg();
 
